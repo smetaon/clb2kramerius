@@ -5,7 +5,9 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import networkx as nx
 import json
-from time import sleep
+import logging
+
+# TODO: přidat logy
 
 
 def setup_driver(headless: bool = False) -> webdriver.Firefox:
@@ -92,6 +94,8 @@ class Periodical:
 
     Attributes
     ---------
+    name : str
+        Name of a periodical
     uuid : str
         A unique identifier of a periodical from a digital library.
     library : str
@@ -102,28 +106,35 @@ class Periodical:
         The base url of the library
     tree : networkx.DiGraph()
         The tree of the digited periodical.
+
         The layers of the tree are:
-            periodical
-            volume (optional)
-            issue (optional)
-            page
-        Keys are uuids.
+            periodical/volume (optional)/issue (optional)/page
+        Keys are UUIDs.
 
     Methods
     -------
-    save_tree : Save the tree to a file
-    make_url : Generate a url to a unit (issue/volume)
-    find_children : Perform DFS to find UUIDs of children
+    save_tree: 
+        Save the tree to a file
+    make_url: 
+        Generate a url to a unit (issue/volume)
+    find_children: 
+        Perform DFS to find UUIDs of children
     """
 
     # TODO: Možná nejsou atributy `library` a `kramerius_ver` vůbec nutné
 
-    def __init__(self, uuid: str, library: str, kramerius_ver: str, url: str):
+    def __init__(self, name: str, uuid: str, library: str, kramerius_ver: str, url: str):
+        self.name = name
         self.uuid = uuid
         self.library = library
         self.kramerius_ver = kramerius_ver
         self.url = url
         self.tree = nx.DiGraph()
+
+        logging.info(f"Loaded periodical {self}")
+
+    def __str__(self) -> str:
+        return f"{self.name} UUID={self.uuid}, lib={self.library}, url={self.url}, ver={self.kramerius_ver}"
 
     def save_tree(self, path: str) -> None:
         """
@@ -136,6 +147,11 @@ class Periodical:
         with open(path, 'w') as f:
             graph = nx.node_link_data(self.tree, edges='edges')  # type: ignore
             json.dump(graph, f, indent='\t')
+        if not nx.is_tree(self.tree):
+            logging.warning(
+                f'Not a tree" Nodes={self.tree.number_of_nodes} Edges={self.tree.number_of_edges}')
+        logging.info(
+            f"Tree saved to {path}")
         return
 
     def make_url(self, unit: str, uuid: str) -> str:
@@ -158,7 +174,6 @@ class Periodical:
         Args:
             model (str): A keyword from Kramerius, distinguishes periodicals / supplements / pages etc. We want to stop the recursion when we get to "page" 
             uuid (str): UUID of a unit
-            url (str): Link to the unit on the Kramerius website
             driver (webdriver.Firefox) : A Selenium driver (browser)
             i (_type_): helper for debugging TODO: remove
         """
@@ -172,7 +187,9 @@ class Periodical:
 
         driver.get(self.make_url(unit, uuid))
         response = json.loads(read_metadata(driver))
-        # print(response['response']['docs'])
+
+        logging.info(
+            f"Found {len(response['response']['docs'])} children of {model} {uuid}")
 
         for item in response['response']['docs']:
             child_model = item['model']
@@ -182,8 +199,8 @@ class Periodical:
             self.tree.nodes[child_uuid]['model'] = child_model
             self.tree.nodes[child_uuid]['n'] = item['title.search']
 
-            print(f"{uuid=}, {child_uuid=}, {child_model=}",
-                  self.make_url(unit, uuid))
+            logging.info(
+                f"Adding edge between {uuid=} and {child_uuid=}, {child_model=}")
             i += 1
             self.find_children(child_model, child_uuid, driver, i)
         return
