@@ -7,8 +7,6 @@ import networkx as nx
 import json
 import logging
 
-# TODO: přidat logy
-
 
 def setup_driver(headless: bool = False) -> webdriver.Firefox:
     """    
@@ -148,8 +146,9 @@ class Periodical:
             graph = nx.node_link_data(self.tree, edges='edges')  # type: ignore
             json.dump(graph, f, indent='\t')
         if not nx.is_tree(self.tree):
-            logging.warning(
-                f'Not a tree" Nodes={self.tree.number_of_nodes} Edges={self.tree.number_of_edges}')
+            logging.warning('Not a tree"')
+        logging.info(
+            f'Nodes={self.tree.number_of_nodes} Edges={self.tree.number_of_edges}')
         logging.info(
             f"Tree saved to {path}")
         return
@@ -200,7 +199,7 @@ class Periodical:
             self.tree.nodes[child_uuid]['n'] = item['title.search']
 
             logging.info(
-                f"Adding edge between {uuid=} and {child_uuid=}, {child_model=}")
+                f"Adding edge between {uuid=} and {child_uuid=}, {model}--{child_model}")
             i += 1
             self.find_children(child_model, child_uuid, driver, i)
         return
