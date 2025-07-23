@@ -140,17 +140,22 @@ class Periodical:
 
     def save_tree(self, path: str) -> None:
         """
-        Save tree to a file.
-        The format is `node_link_data` from networkx.
+        Save tree to a JSON file.
+        The format is `tree_data` from networkx. If the the graph/tree is not tree, the format is `node_link_data` and a warning
 
         Args:
             path (str): Path to a file to write to. It is rewritten on each save.
         """
         with open(path, 'w') as f:
-            graph = nx.node_link_data(self.tree, edges='edges')  # type: ignore
+            if not nx.is_tree(self.tree):
+                logging.warning(
+                    'Not a tree! Saving using `node_link_data` format')
+                graph = nx.node_link_data(
+                    self.tree, edges='edges')  # type: ignore
+            else:
+                graph = nx.tree_data(self.tree, root=self.uuid)
             json.dump(graph, f, indent='\t')
-        if not nx.is_tree(self.tree):
-            logging.warning('Not a tree"')
+
         logging.info(
             f'Nodes={self.tree.number_of_nodes()} Edges={self.tree.number_of_edges()}')
         logging.info(
