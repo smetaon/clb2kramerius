@@ -130,6 +130,10 @@ class Periodical:
         self.tree = nx.DiGraph()
 
         logging.info(f"Loaded periodical {self}")
+        # Add root
+        self.tree.add_node(self.uuid)
+        self.tree.nodes[self.uuid]['model'] = 'periodical'
+        self.tree.nodes[self.uuid]['n'] = -1
 
     def __str__(self) -> str:
         return f"{self.name} UUID={self.uuid}, lib={self.library}, url={self.url}, ver={self.kramerius_ver}"
@@ -148,7 +152,7 @@ class Periodical:
         if not nx.is_tree(self.tree):
             logging.warning('Not a tree"')
         logging.info(
-            f'Nodes={self.tree.number_of_nodes} Edges={self.tree.number_of_edges}')
+            f'Nodes={self.tree.number_of_nodes()} Edges={self.tree.number_of_edges()}')
         logging.info(
             f"Tree saved to {path}")
         return
@@ -166,7 +170,7 @@ class Periodical:
         """
         return self.url + unit + '/' + uuid
 
-    def find_children(self, model: str, uuid: str, driver: webdriver.Firefox, i) -> None:
+    def find_children(self, model: str, uuid: str, driver: webdriver.Firefox) -> None:
         """
         Perform a depth-first search to find UUIDs from metadata
 
@@ -174,10 +178,9 @@ class Periodical:
             model (str): A keyword from Kramerius, distinguishes periodicals / supplements / pages etc. We want to stop the recursion when we get to "page" 
             uuid (str): UUID of a unit
             driver (webdriver.Firefox) : A Selenium driver (browser)
-            i (_type_): helper for debugging TODO: remove
+
         """
-        # TODO: remove argument i
-        if model == 'page':  # or i > 2:
+        if model == 'page':
             return
         if model in ['periodicalitem', 'supplement']:
             unit = 'view'
@@ -200,6 +203,5 @@ class Periodical:
 
             logging.info(
                 f"Adding edge between {uuid=} and {child_uuid=}, {model}--{child_model}")
-            i += 1
-            self.find_children(child_model, child_uuid, driver, i)
+            self.find_children(child_model, child_uuid, driver)
         return

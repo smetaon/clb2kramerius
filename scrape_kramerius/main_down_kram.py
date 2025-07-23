@@ -1,20 +1,45 @@
 import DwnKramerius as dwn
 import logging
+import datetime
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO,
+                    format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
+                    handlers=[
+                        logging.FileHandler(
+                            'kramerius_dwn_data/nar_revue.log'),
+                        logging.StreamHandler()
+                    ])
 
-frenstat = dwn.Periodical(
-    name='Hlasy muzea a archivu ve Frenštátě pod Radhoštěm',
-    uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
+# per = dwn.Periodical(
+#     name='Hlasy muzea a archivu ve Frenštátě pod Radhoštěm',
+#     uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
+#     library='mzk',
+#     kramerius_ver='v7',
+#     url='https://www.digitalniknihovna.cz/mzk/',
+# )
+
+# per = dwn.Periodical(
+#     name='Ibero-Americana Pragensia',
+#     uuid='uuid:72c440c0-ae90-11eb-94e5-005056827e52',
+#     library='mzk',
+#     kramerius_ver='v7',
+#     url='https://www.digitalniknihovna.cz/mzk/',
+# )
+
+per = dwn.Periodical(
+    name='Národopisná revue',
+    uuid='uuid:6d522af0-fd50-11e4-92a1-5ef3fc9bb22f',
     library='mzk',
     kramerius_ver='v7',
-    url='https://www.digitalniknihovna.cz/mzk/',
+    url='https://www.digitalniknihovna.cz/mzk/'
 )
 
-driver = dwn.setup_driver(headless=True)
 
-frenstat.find_children('periodical', frenstat.uuid, driver, 0)
-frenstat.save_tree(
-    '/home/clb/dev/link_kramerius/kramerius_dwn_data/frfr.json')
+driver = dwn.setup_driver(headless=True)
+per.find_children('periodical', per.uuid, driver)
+now = datetime.datetime.now()
+timestamp = now.strftime(r"%m%d%H%M%S")
+per.save_tree(
+    f'/home/clb/dev/link_kramerius/kramerius_dwn_data/Narodopis_rev{timestamp}.json')
 
 dwn.teardown(driver)
