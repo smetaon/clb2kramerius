@@ -284,7 +284,7 @@ class Periodical:
             self.find_children(child_model, child_uuid, child_id, driver)
         return
 
-    def link(self, volume: str | None, issue: str | None, page: str | None) -> str:
+    def link(self, volume: str | None, issue: str | None, page: str | None) -> str | None:
         """Make a URL to a page with given path.
 
         Parameters
@@ -298,17 +298,16 @@ class Periodical:
 
         Returns
         -------
-        str
-            Link to a page or a message that the path leads nowhere.
+        str | None
+            Link to a page or `None` if the path leads nowhere.
         """
         path_to_page = self.id_sep.join(
             [self.root, volume, issue, page])  # type: ignore
         try:
             page_node = self.tree.nodes[path_to_page]
         except KeyError:
-            msg = f'Node with path `{path_to_page}` was not found!'
-            logging.warning(msg)
-            return msg
+            logging.warning(f'Node `{path_to_page}` was not found!')
+            return None
         else:
             return self.make_url(page_node['uuid'])
 
