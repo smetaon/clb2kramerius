@@ -1,5 +1,5 @@
 import csv
-from Parse773 import parse_location, replace_separators
+from Parse773 import parse_location, replace_separators, remove_leading_zeros
 
 
 def test_parse_location():
@@ -21,3 +21,14 @@ def test_replace_separators():
                            row['hand_page'])
             vol_iss_pg = (row['vol'], row['issue'], row['page'])
             assert replace_separators(*vol_iss_pg) == hand_parsed
+
+
+def test_remove_leading_zeros():
+    with open('test_data/test_remove_leading_zeros.csv') as f:
+        reader = csv.DictReader(f, delimiter=';')
+        for row in reader:
+            hand_parsed = (row['hand_vol'],
+                           row['hand_issue'],
+                           row['hand_page'])
+            vol_iss_pg = (row['vol'], row['issue'], row['page'])
+            assert remove_leading_zeros(*vol_iss_pg) == hand_parsed

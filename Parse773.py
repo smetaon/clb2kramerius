@@ -37,10 +37,6 @@ def parse_location(loc: str) -> tuple[str | None, str | None, str | None]:
     return (vol, issue, page)
 
 
-def normalize(vol: str | None, issue: str | None, page: str | None) -> tuple[str | None, str | None, str | None]:
-    raise NotImplementedError
-
-
 def replace_separators(vol: str | None, issue: str | None, page: str | None) -> tuple[str | None, str | None, str | None]:
     """Replace `/` with `-` in an issue number.
 
@@ -50,16 +46,16 @@ def replace_separators(vol: str | None, issue: str | None, page: str | None) -> 
     Parameters
     ----------
     vol : str | None
-        _description_
+        Volume.
     issue : str | None
-        _description_
+        Issue.
     page : str | None
-        _description_
+        Page.
 
     Returns
     -------
     tuple[str | None, str | None, str | None]
-        _description_
+        Volume Issue Page
 
     """
     if issue is not None:
@@ -68,9 +64,43 @@ def replace_separators(vol: str | None, issue: str | None, page: str | None) -> 
     return (vol, issue, page)
 
 
-def remove_leading_zeros():
-    raise NotImplementedError
+def remove_leading_zeros(vol: str | None, issue: str | None, page: str | None) -> tuple[str | None, str | None, str | None]:
+    """Remove leading zeros sometimes found in `issue` string.
+
+    Parameters
+    ----------
+    vol : str | None
+        Volume.
+    issue : str | None
+        Issue.
+    page : str | None
+        Page
+
+    Returns
+    -------
+    tuple[str | None, str | None, str | None]
+        Volume, issue, page.
+    """
+    if issue is not None:
+        match = re.findall(r'(\d+)', issue)
+        trimmed = []
+        # remove leading zeros
+        for num in match:
+            trimmed.append(re.sub(r'^0+', '', num))
+
+        # place numbers with removed zeros back to the original string
+        for orig, new in zip(match, trimmed):
+            issue = re.sub(orig, new, issue)
+
+    return (vol, issue, page)
 
 
 def remove_brackets():
     raise NotImplementedError
+
+
+def normalize(vol: str | None, issue: str | None, page: str | None) -> tuple[str | None, str | None, str | None]:
+    normalized = remove_leading_zeros(vol, issue, page)
+    normalized = replace_separators(*normalized)
+
+    return normalized
