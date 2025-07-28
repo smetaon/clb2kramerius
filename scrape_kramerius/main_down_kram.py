@@ -41,5 +41,7 @@ driver = dwn.setup_driver(headless=False)
 per.find_children('periodical', per.uuid, per.root, driver)
 per.save_tree(
     f'/home/clb/dev/link_kramerius/kramerius_dwn_data/frenstat_new_{timestamp}.json')
+per.save(
+    f'/home/clb/dev/link_kramerius/kramerius_dwn_data/frenstat_object_{timestamp}.json')
 
 dwn.teardown(driver)

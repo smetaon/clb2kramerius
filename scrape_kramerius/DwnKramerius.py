@@ -46,11 +46,12 @@ def read_metadata(driver: webdriver.Firefox) -> str:
     Returns:
         str: The children metadata (usually JSON)
     """
+    wait = WebDriverWait(driver, timeout=5)
 
     # Find the metadata button
     metadata_button_class_name = 'app-metadata-controls'
-    WebDriverWait(driver, timeout=2).until(
-        EC.presence_of_element_located((By.CLASS_NAME, metadata_button_class_name)))
+    wait.until(EC.presence_of_element_located(
+        (By.CLASS_NAME, metadata_button_class_name)))
     control_div = driver.find_element(
         by=By.CLASS_NAME, value=metadata_button_class_name)
     buttons = control_div.find_elements(by=By.TAG_NAME, value='mat-icon')
@@ -62,15 +63,15 @@ def read_metadata(driver: webdriver.Firefox) -> str:
 
     # Show the metadata selector
     mods_button_class_name = 'app-dialog-title'
-    WebDriverWait(driver, timeout=2).until(
-        EC.presence_of_element_located((By.CLASS_NAME, mods_button_class_name)))
+    wait.until(EC.presence_of_element_located(
+        (By.CLASS_NAME, mods_button_class_name)))
     mods_button = driver.find_element(
         by=By.CLASS_NAME, value=mods_button_class_name)
     mods_button.click()
 
     dropdown_sel_class_name = 'app-dropdown-item'
-    WebDriverWait(driver, timeout=2).until(
-        EC.presence_of_element_located((By.CLASS_NAME, dropdown_sel_class_name)))
+    wait.until(EC.presence_of_element_located(
+        (By.CLASS_NAME, dropdown_sel_class_name)))
     dropdown_selectors = driver.find_elements(
         by=By.CLASS_NAME, value=dropdown_sel_class_name)
     # no useful identifier to identify this button 🙁
@@ -79,8 +80,7 @@ def read_metadata(driver: webdriver.Firefox) -> str:
     # Show the children metadata
     children_button.click()
     code_tag_name = 'code'
-    WebDriverWait(driver, timeout=2).until(
-        EC.presence_of_element_located((By.TAG_NAME, code_tag_name)))
+    wait.until(EC.presence_of_element_located((By.TAG_NAME, code_tag_name)))
     children_metadata = driver.find_element(
         by=By.TAG_NAME, value=code_tag_name)
     return children_metadata.text
@@ -126,16 +126,16 @@ class Periodical:
 
     """
 
-    def __init__(self, name: str, uuid: str, library: str, kramerius_ver: str, url: str):
+    def __init__(self, name: str, uuid: str, library: str, kramerius_ver: str, url: str, tree=nx.DiGraph(), id_sep='/', root='root', link_uuid='uuid'):
         self.name = name
         self.uuid = uuid
         self.library = library
         self.kramerius_ver = kramerius_ver
         self.url = url
-        self.tree = nx.DiGraph()
-        self.id_sep = '/'
-        self.root = 'root'
-        self.link_uuid = 'uuid'
+        self.tree = tree
+        self.id_sep = id_sep
+        self.root = root
+        self.link_uuid = link_uuid
 
         self._check_url()
 
@@ -175,13 +175,40 @@ class Periodical:
                 graph = nx.node_link_data(
                     self.tree, edges='edges')  # type: ignore
             else:
-                graph = nx.tree_data(self.tree, root='root')
+                graph = nx.tree_data(self.tree, root=self.root)
             json.dump(graph, f, indent='\t')
 
         logging.info(
             f'Nodes={self.tree.number_of_nodes()} Edges={self.tree.number_of_edges()}')
         logging.info(
             f"Tree saved to {path}")
+        return
+
+    def save(self, path: str) -> None:
+        if not nx.is_tree(self.tree):
+            logging.warning(
+                'Not a tree! Saving using `node_link_data` format')
+            graph = nx.node_link_data(
+                self.tree, edges='edges')  # type: ignore
+        else:
+            graph = nx.tree_data(self.tree, root=self.root)
+        logging.info(
+            f'Nodes={self.tree.number_of_nodes()} Edges={self.tree.number_of_edges()}')
+
+        params = {
+            'name': self.name,
+            'uuid': self.uuid,
+            'library': self.library,
+            'kramerius_ver': self.kramerius_ver,
+            'url': self.url,
+            'tree': graph,
+            'id_sep': self.id_sep,
+            'root': self.root,
+            'link_uuid': self.link_uuid
+        }
+        with open(path, 'w') as f:
+            json.dump(params, f, indent='\t')
+        logging.info(f'Saved to {path}')
         return
 
     def make_url(self, uuid: str) -> str:
@@ -206,6 +233,9 @@ class Periodical:
             par_id (str): Parent ID, follows the tree structure
             driver (webdriver.Firefox) : A Selenium driver (browser)
         """
+        if model == 'page':
+            return
+
         logging.debug(f'Visiting {self.make_url(uuid)}')
         driver.get(self.make_url(uuid))
         response = json.loads(read_metadata(driver))
