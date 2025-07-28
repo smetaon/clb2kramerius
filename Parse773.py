@@ -22,7 +22,7 @@ def parse_location(loc: str) -> tuple[str | None, str | None, str | None]:
     tuple[str | None, str | None, str | None]
         volume, issue, page
     """
-    capture_volume = r'^([\[\d\]]+)[:<]'
+    capture_volume = r'^([\[\d\]\ ]+)[:<]'
     capture_issue = r':([\[\d/\]]+)<'
     capture_page = r'<([\[ixv\d\]]+)$'
 
@@ -38,4 +38,16 @@ def parse_location(loc: str) -> tuple[str | None, str | None, str | None]:
 
 
 def normalize(vol: str | None, issue: str | None, page: str | None) -> tuple[str | None, str | None, str | None]:
+    raise NotImplementedError
+
+
+def replace_separators():
+    raise NotImplementedError
+
+
+def remove_leading_zeros():
+    raise NotImplementedError
+
+
+def remove_brackets():
     raise NotImplementedError
