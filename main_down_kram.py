@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
                     handlers=[
                         logging.FileHandler(
-                            f'kramerius_dwn_data/logs/frenstat_{timestamp}.log', mode='w'),
+                            f'data/logs/frenstat_{timestamp}.log', mode='w'),
                         logging.StreamHandler()
                     ])
 
@@ -40,8 +40,8 @@ per = dwn.Periodical(
 driver = dwn.setup_driver(headless=True)
 per.find_children('periodical', per.uuid, per.root, driver)
 per.save_tree(
-    f'/home/clb/dev/link_kramerius/kramerius_dwn_data/frenstat_new_{timestamp}.json')
+    f'data/frenstat_new_{timestamp}.json')
 per.save(
-    f'/home/clb/dev/link_kramerius/kramerius_dwn_data/frenstat_object_{timestamp}.json')
+    f'data/frenstat_object_{timestamp}.json')
 
 dwn.teardown(driver)
