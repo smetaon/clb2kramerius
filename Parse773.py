@@ -35,3 +35,7 @@ def parse_location(loc: str) -> tuple[str | None, str | None, str | None]:
     page = page_match[1] if page_match is not None else None
 
     return (vol, issue, page)
+
+
+def normalize(vol: str | None, issue: str | None, page: str | None) -> tuple[str | None, str | None, str | None]:
+    raise NotImplementedError

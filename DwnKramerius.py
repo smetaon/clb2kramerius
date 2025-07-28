@@ -323,7 +323,7 @@ class Periodical:
         Je to k zvážení.
         """
         # TODO: implement (?)
-        raise NotImplemented
+        raise NotImplementedError
 
 
 def load_periodical(path: str) -> Periodical:
