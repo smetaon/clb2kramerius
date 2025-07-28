@@ -9,11 +9,11 @@ import logging
 
 
 def setup_driver(headless: bool = False) -> webdriver.Firefox:
-    """    
+    """
     Setup the browser for scraping the digital library.
 
     Args:
-        headless (bool): Headless or visible browser 
+        headless (bool): Headless or visible browser
 
     Returns:
         webdriver.Firefox: A Selenium driver (browser)
@@ -101,25 +101,30 @@ class Periodical:
     kramerius_ver : str
         Kramerius version running in the library.
     url : str
-        The base url of the library
-    tree : networkx.DiGraph()
+        The base url of the library. Use URL with '/' at the end.
+    tree : networkx.DiGraph
         The tree of the digited periodical.
 
         The layers of the tree are:
             periodical/volume (optional)/issue (optional)/page
-        Keys are UUIDs.
+        Keys are made by concatenating volume/issue/page number.
+    id_sep : str
+        Separator used in keys in the tree, by default '/'.
+    root : str
+        Root ID, by default 'root'
+    link_uuid : str
+        Part of URL linking to a particular UUID, by default 'uuid'
 
     Methods
     -------
-    save_tree: 
+    save_tree:
         Save the tree to a file
-    make_url: 
+    make_url:
         Generate a url to a unit (issue/volume)
-    find_children: 
-        Perform DFS to find UUIDs of children
-    """
+    find_children:
+        Perform DFS to find children.
 
-    # TODO: Možná nejsou atributy `library` a `kramerius_ver` vůbec nutné
+    """
 
     def __init__(self, name: str, uuid: str, library: str, kramerius_ver: str, url: str):
         self.name = name
@@ -128,12 +133,29 @@ class Periodical:
         self.kramerius_ver = kramerius_ver
         self.url = url
         self.tree = nx.DiGraph()
+        self.id_sep = '/'
+        self.root = 'root'
+        self.link_uuid = 'uuid'
+
+        self._check_url()
 
         logging.info(f"Loaded periodical {self}")
-        # Add root
-        self.tree.add_node(self.uuid)
-        self.tree.nodes[self.uuid]['model'] = 'periodical'
-        self.tree.nodes[self.uuid]['n'] = -1
+        # Add a root
+        self.tree.add_node(self.root)
+        self.tree.nodes[self.root]['model'] = 'periodical'
+        self.tree.nodes[self.root]['uuid'] = self.uuid
+
+    def _check_url(self):
+        """
+        Check if the URL format is correct.
+
+        Raises
+        ------
+        ValueError
+            URL should end with `/`
+        """
+        if self.url[-1] != '/':
+            raise ValueError('URL should end with `/`.')
 
     def __str__(self) -> str:
         return f"{self.name} UUID={self.uuid}, lib={self.library}, url={self.url}, ver={self.kramerius_ver}"
@@ -153,7 +175,7 @@ class Periodical:
                 graph = nx.node_link_data(
                     self.tree, edges='edges')  # type: ignore
             else:
-                graph = nx.tree_data(self.tree, root=self.uuid)
+                graph = nx.tree_data(self.tree, root='root')
             json.dump(graph, f, indent='\t')
 
         logging.info(
@@ -162,51 +184,60 @@ class Periodical:
             f"Tree saved to {path}")
         return
 
-    def make_url(self, unit: str, uuid: str) -> str:
+    def make_url(self, uuid: str) -> str:
         """
-        Generate a url to a unit (issue/volume)
+        Generate a URL to issue/volume/page
 
         Args:
-            unit (str): A "unit" in the tree (issue/volume/page)
             uuid (str): UUID of the unit
 
         Returns:
             str: A link to the unit on the Kramerius website
         """
-        return self.url + unit + '/' + uuid
+        return self.url + self.link_uuid + '/' + uuid
 
-    def find_children(self, model: str, uuid: str, driver: webdriver.Firefox) -> None:
+    def find_children(self, model: str, uuid: str, par_id: str, driver: webdriver.Firefox) -> None:
         """
         Perform a depth-first search to find UUIDs from metadata
 
         Args:
-            model (str): A keyword from Kramerius, distinguishes periodicals / supplements / pages etc. We want to stop the recursion when we get to "page" 
+            model (str): A keyword from Kramerius, distinguishes periodicals / supplements / pages etc. We want to stop the recursion when we get to "page"
             uuid (str): UUID of a unit
+            par_id (str): Parent ID, follows the tree structure
             driver (webdriver.Firefox) : A Selenium driver (browser)
-
         """
-        if model == 'page':
-            return
-        if model in ['periodicalitem', 'supplement']:
-            unit = 'view'
-        else:
-            unit = 'periodical'
-
-        driver.get(self.make_url(unit, uuid))
+        logging.debug(f'Visiting {self.make_url(uuid)}')
+        driver.get(self.make_url(uuid))
         response = json.loads(read_metadata(driver))
 
+        # TODO: parser JSON; verze krameria (resp. MZK a NKP) se liší strukturou vráceného JSONu
         logging.info(
-            f"Found {len(response['response']['docs'])} children of {model} {uuid}")
+            f"Found {len(response['response']['docs'])} children of {model} `{par_id}`")
 
         for item in response['response']['docs']:
             child_model = item['model']
             child_uuid = item['pid']
+            child_n = item['title.search']  # volume or issue or page number
+            child_id = par_id + self.id_sep + child_n
 
-            self.tree.add_edge(uuid, child_uuid)
-            self.tree.nodes[child_uuid]['model'] = child_model
-            self.tree.nodes[child_uuid]['n'] = item['title.search']
+            self.tree.add_edge(par_id, child_id)
+            self.tree.nodes[child_id]['model'] = child_model
+            self.tree.nodes[child_id]['uuid'] = child_uuid
 
             logging.info(
-                f"Adding edge between {uuid=} and {child_uuid=}, {model}--{child_model}")
-            self.find_children(child_model, child_uuid, driver)
+                f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
+            self.find_children(child_model, child_uuid, child_id, driver)
         return
+
+    def bfs(self):
+        """
+        Něco jako online verze DFS.
+        DFS mi najde všechno, tohle by snad šlo udělat tak, aby to našlo jen co potřebuju.
+        Tj. dostalo by to 773q z marcu a do šířky by to vyhledávalo.
+        Tím bychom dostali z krameria jenom data o článcích, které jsou v člb.
+        To by mohlo zrychlit proces stahování. Ale taky nemuselo.
+        Taky hodně záleží na tom, jak dobře budu parsovat 773q.
+        Je to k zvážení.
+        """
+        # TODO: implement (?)
+        raise NotImplemented
