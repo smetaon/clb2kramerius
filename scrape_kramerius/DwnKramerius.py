@@ -9,14 +9,17 @@ import logging
 
 
 def setup_driver(headless: bool = False) -> webdriver.Firefox:
-    """
-    Setup the browser for scraping the digital library.
+    """Setup the browser for scraping the digital library.
 
-    Args:
-        headless (bool): Headless or visible browser
+    Parameters
+    ----------
+    headless : bool, optional
+        Headless or visible browser, by default False.
 
-    Returns:
-        webdriver.Firefox: A Selenium driver (browser)
+    Returns
+    -------
+    webdriver.Firefox
+        A Selenium driver (browser).
     """
     options = Options()
     if headless:
@@ -27,24 +30,29 @@ def setup_driver(headless: bool = False) -> webdriver.Firefox:
 
 
 def teardown(driver: webdriver.Firefox) -> None:
-    """
-    Quit the browser.
+    """Quit the Selenium browser.
 
-    Args:
-        driver (webdriver.Firefox): A Selenium driver (browser)
+
+    Parameters
+    ----------
+    driver : webdriver.Firefox
+        A Selenium driver (browser).
     """
     driver.quit()
 
 
 def read_metadata(driver: webdriver.Firefox) -> str:
-    """
-    Find and download the `children` metadata on a Kramerius website
+    """Find and download the `children` metadata on a Kramerius website.
 
-    Args:
-        driver (webdriver.Firefox): A Selenium driver (browser)
+    Parameters
+    ----------
+    driver : webdriver.Firefox
+        A Selenium driver (browser).
 
-    Returns:
-        str: The children metadata (usually JSON)
+    Returns
+    -------
+    str
+        The children metadata (usually JSON).
     """
     wait = WebDriverWait(driver, timeout=5)
 
@@ -87,13 +95,12 @@ def read_metadata(driver: webdriver.Firefox) -> str:
 
 
 class Periodical:
-    """
-    Information about a periodical
+    """Information about a periodical
 
     Attributes
     ---------
     name : str
-        Name of a periodical
+        Name of a periodical.
     uuid : str
         A unique identifier of a periodical from a digital library.
     library : str
@@ -111,19 +118,22 @@ class Periodical:
     id_sep : str
         Separator used in keys in the tree, by default '/'.
     root : str
-        Root ID, by default 'root'
+        Root ID, by default 'root'.
     link_uuid : str
-        Part of URL linking to a particular UUID, by default 'uuid'
+        Part of URL linking to a particular UUID, by default 'uuid'.
 
     Methods
     -------
     save_tree:
-        Save the tree to a file
+        Save the tree to a JSON file.
     make_url:
-        Generate a url to a unit (issue/volume)
+        Generate a URL to a page/issue/volume.
     find_children:
         Perform DFS to find children.
-
+    _check_url:
+        Check if the `link_uuid` URL is correct
+    save:
+        Save the object to a JSON file.
     """
 
     def __init__(self, name: str, uuid: str, library: str, kramerius_ver: str, url: str, tree=nx.DiGraph(), id_sep='/', root='root', link_uuid='uuid'):
@@ -147,8 +157,7 @@ class Periodical:
             self.tree.nodes[self.root]['uuid'] = self.uuid
 
     def _check_url(self):
-        """
-        Check if the URL format is correct.
+        """Check if the URL format is correct.
 
         Raises
         ------
@@ -162,12 +171,13 @@ class Periodical:
         return f"{self.name} UUID={self.uuid}, lib={self.library}, url={self.url}, ver={self.kramerius_ver}"
 
     def save_tree(self, path: str) -> None:
-        """
-        Save tree to a JSON file.
-        The format is `tree_data` from networkx. If the the graph/tree is not tree, the format is `node_link_data` and a warning
+        """Save the tree to a JSON file.
+        The format is `tree_data` from networkx. If the the graph/tree is not tree, the format is `node_link_data` and a warning is logged.
 
-        Args:
-            path (str): Path to a file to write to. It is rewritten on each save.
+        Parameters
+        ----------
+        path : str
+            Path to a file to write to. It is rewritten on each save.
         """
         with open(path, 'w') as f:
             if not nx.is_tree(self.tree):
@@ -186,6 +196,13 @@ class Periodical:
         return
 
     def save(self, path: str) -> None:
+        """Save the object to path in JSON.
+
+        Parameters
+        ----------
+        path : str
+            Path to save location.
+        """
         if not nx.is_tree(self.tree):
             logging.warning(
                 'Not a tree! Saving using `node_link_data` format')
@@ -213,26 +230,33 @@ class Periodical:
         return
 
     def make_url(self, uuid: str) -> str:
-        """
-        Generate a URL to issue/volume/page
+        """Generate a URL to issue/volume/page.
 
-        Args:
-            uuid (str): UUID of the unit
+        Parameters
+        ----------
+        uuid : str
+            UUID of the unit.
 
-        Returns:
-            str: A link to the unit on the Kramerius website
+        Returns
+        -------
+        str
+            A link to the unit on the Kramerius website.
         """
         return self.url + self.link_uuid + '/' + uuid
 
     def find_children(self, model: str, uuid: str, par_id: str, driver: webdriver.Firefox) -> None:
-        """
-        Perform a depth-first search to find UUIDs from metadata
+        """Perform a depth-first search to find UUIDs from metadata.
 
-        Args:
-            model (str): A keyword from Kramerius, distinguishes periodicals / supplements / pages etc. We want to stop the recursion when we get to "page"
-            uuid (str): UUID of a unit
-            par_id (str): Parent ID, follows the tree structure
-            driver (webdriver.Firefox) : A Selenium driver (browser)
+        Parameters
+        ----------
+        model : str
+            A keyword from Kramerius, distinguishes periodicals / supplements / pages etc. We want to stop the recursion when we get to `page`.
+        uuid : str
+            UUID of a unit.
+        par_id : str
+            Parent ID, follows the tree structure.
+        driver : webdriver.Firefox
+            A Selenium driver (browser)
         """
         if model == 'page':
             return
@@ -262,7 +286,7 @@ class Periodical:
 
     def bfs(self):
         """
-        Něco jako online verze DFS.
+        Něco jako online verze find_children.
         DFS mi najde všechno, tohle by snad šlo udělat tak, aby to našlo jen co potřebuju.
         Tj. dostalo by to 773q z marcu a do šířky by to vyhledávalo.
         Tím bychom dostali z krameria jenom data o článcích, které jsou v člb.
