@@ -324,3 +324,23 @@ class Periodical:
         """
         # TODO: implement (?)
         raise NotImplemented
+
+
+def load_periodical(path: str) -> Periodical:
+    """Load class `Periodical` from JSON.
+
+    Parameters
+    ----------
+    path : str
+        Path to a JSON file.
+
+    Returns
+    -------
+    Periodical
+        Periodical class.
+    """
+    with open(path) as f:
+        json_per = json.load(f)
+    json_per['tree'] = nx.tree_graph(json_per['tree'])
+    per = Periodical(**json_per)
+    return per
