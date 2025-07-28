@@ -140,10 +140,11 @@ class Periodical:
         self._check_url()
 
         logging.info(f"Loaded periodical {self}")
-        # Add a root
-        self.tree.add_node(self.root)
-        self.tree.nodes[self.root]['model'] = 'periodical'
-        self.tree.nodes[self.root]['uuid'] = self.uuid
+        if self.tree.number_of_nodes == 0:
+            # Add a root
+            self.tree.add_node(self.root)
+            self.tree.nodes[self.root]['model'] = 'periodical'
+            self.tree.nodes[self.root]['uuid'] = self.uuid
 
     def _check_url(self):
         """

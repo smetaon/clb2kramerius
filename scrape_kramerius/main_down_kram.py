@@ -37,7 +37,7 @@ per = dwn.Periodical(
 # )
 
 
-driver = dwn.setup_driver(headless=False)
+driver = dwn.setup_driver(headless=True)
 per.find_children('periodical', per.uuid, per.root, driver)
 per.save_tree(
     f'/home/clb/dev/link_kramerius/kramerius_dwn_data/frenstat_new_{timestamp}.json')
