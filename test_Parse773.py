@@ -3,7 +3,7 @@ from Parse773 import parse_location
 
 
 def test_parse_location():
-    with open('test/test_773.csv') as f:
+    with open('test_data/test_parsing.csv') as f:
         reader = csv.DictReader(f, delimiter=';')
         for row in reader:
             if row['issue'] == 'None':
