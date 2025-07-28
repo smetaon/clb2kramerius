@@ -1,5 +1,5 @@
 import csv
-from DwnKramerius import parse_location
+from Parse773 import parse_location
 
 
 def test_parse_location():
