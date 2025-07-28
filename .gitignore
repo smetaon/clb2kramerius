@@ -1,5 +1,5 @@
 **/*.svg
 **/*.dot
 __pycache__/
-kramerius_dwn_data/*
+data/*
 .vscode/*
