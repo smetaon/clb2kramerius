@@ -302,7 +302,7 @@ class Periodical:
             Link to a page or `None` if the path leads nowhere.
         """
         path_to_page = self.id_sep.join(
-            [self.root, volume, issue, page])  # type: ignore
+            filter(None, [self.root, volume, issue, page]))
         try:
             page_node = self.tree.nodes[path_to_page]
         except KeyError:
