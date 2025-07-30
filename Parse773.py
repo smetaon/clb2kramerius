@@ -23,8 +23,8 @@ def parse_location(loc: str) -> tuple[str | None, str | None, str | None]:
         volume, issue, page
     """
     capture_volume = r'^([\[\d\]\ ]+)[:<]'
-    capture_issue = r':([\[\d/\]]+)<'
-    capture_page = r'<([\[ixv\d\]]+)$'
+    capture_issue = r':([\[\d/\]]+)<?'
+    capture_page = r'<([\[ixv\w\]]+)$'
 
     vol_match = re.search(capture_volume, loc)
     issue_match = re.search(capture_issue, loc)
