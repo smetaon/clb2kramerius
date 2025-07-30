@@ -306,10 +306,43 @@ class Periodical:
         try:
             page_node = self.tree.nodes[path_to_page]
         except KeyError:
+            path_to_issue = self.id_sep.join(filter(None, [self.root, volume]))
+            # It can happen, that
+            # a) We did not download issue number from Kramerius
+            #   (that happens when there is only one issue in a volume)
+            #   but it is present in the člb record.
+            # TODO: what if there is no `issue` in člb record, but there is an issue number from Kramerius?
+            # e.g. we have 773q '25<100' but from Kramerius we have 25/2/100
+            # this should only happen if the volume has one issue, so we can
+            # check that volume has only child and try path 25:{the only child of vol}<page
+            if self._children_are_page(path_to_issue):
+                logging.info(
+                    f'Node `{path_to_page}` not found, trying path without issue `{path_to_issue}`')
+                return self.link(volume, None, page)
             logging.warning(f'Node `{path_to_page}` was not found!')
             return None
         else:
-            return self.make_url(page_node['uuid'])
+            page_url = self.make_url(page_node['uuid'])
+            logging.info(f'Success! Node `{path_to_page}` found: {page_url}')
+            return page_url
+
+    def _children_are_page(self, node: str) -> bool:
+        """Check wheter all children of a node have model `page`.
+
+        Parameters
+        ----------
+        node : str
+            A path to a node.
+
+        Returns
+        -------
+        bool
+            `True` if all children have model `page`, `False` otherwise
+        """
+        for succ in self.tree.successors(node):
+            if self.tree.nodes[succ]['model'] != 'page':
+                return False
+        return True
 
     def bfs(self):
         """
