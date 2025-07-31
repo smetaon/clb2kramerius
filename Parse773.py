@@ -1,6 +1,39 @@
 import re
 
 
+def standardize_loc(loc: str) -> str:
+    """Complete field 773q in a way that it is always in the form
+    `volume:issue<page`.
+
+    This facilitates future parsing.
+
+    Sometimes, 773q in marc misses issue or page, eg. 1<3 or 1:5.
+    Fix this by attaching the appropriate symbol, eg. 1<3: or 1<:5.
+
+    Parameters
+    ----------
+    loc : str
+        Raw 773q from marc.
+
+    Returns
+    -------
+    str
+        773q field in the form `volume:issue<page`.
+    """
+    PAGE_SEP_CHAR = '<'
+    ISSUE_SEP_CHAR = ':'
+    issue_sep = re.search(ISSUE_SEP_CHAR, loc)
+    page_sep = re.search(PAGE_SEP_CHAR, loc)
+
+    if issue_sep is None and page_sep is None:
+        return loc+ISSUE_SEP_CHAR+PAGE_SEP_CHAR
+    if issue_sep is None:
+        return re.sub(PAGE_SEP_CHAR, ISSUE_SEP_CHAR+PAGE_SEP_CHAR, loc)
+    if page_sep is None:
+        return loc+PAGE_SEP_CHAR
+    return loc
+
+
 def parse_location(loc: str) -> tuple[str | None, str | None, str | None]:
     """Parse subfield 773$q.
 
@@ -22,13 +55,14 @@ def parse_location(loc: str) -> tuple[str | None, str | None, str | None]:
     tuple[str | None, str | None, str | None]
         volume, issue, page
     """
-    capture_volume = r'^([\[\d\]\ ]+)[:<]'
-    capture_issue = r':([\[\d/\]]+)<?'
-    capture_page = r'<([\[ixv\w\]]+)$'
+    fixed_loc = standardize_loc(loc)
+    capture_volume = r'^(.+):'
+    capture_issue = r':(.+)<'
+    capture_page = r'<(.+)$'
 
-    vol_match = re.search(capture_volume, loc)
-    issue_match = re.search(capture_issue, loc)
-    page_match = re.search(capture_page, loc, re.IGNORECASE)
+    vol_match = re.search(capture_volume, fixed_loc)
+    issue_match = re.search(capture_issue, fixed_loc)
+    page_match = re.search(capture_page, fixed_loc, re.IGNORECASE)
 
     vol = vol_match[1] if vol_match is not None else None
     issue = issue_match[1] if issue_match is not None else None
