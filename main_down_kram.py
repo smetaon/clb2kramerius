@@ -1,47 +1,33 @@
 import DwnKramerius as dwn
 import logging
 import datetime
-now = datetime.datetime.now()
-timestamp = now.strftime(r"%m%d%H%M%S")
+import csv
 
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
-                    handlers=[
-                        logging.FileHandler(
-                            f'data/logs/frenstat_{timestamp}.log', mode='w'),
-                        logging.StreamHandler()
-                    ])
+PATH = 'data/mzk_small.csv'
+with open(PATH) as f:
+    reader = csv.DictReader(f, delimiter=';')
+    for row in reader:
+        now = datetime.datetime.now()
+        timestamp = now.strftime(r"%m%d%H%M%S")
 
-per = dwn.Periodical(
-    name='Hlasy muzea a archivu ve Frenštátě pod Radhoštěm',
-    uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
-    library='mzk',
-    kramerius_ver='v7',
-    url='https://www.digitalniknihovna.cz/mzk/',
-)
+        log_title = row['title'].replace(' ', '')[:7]
+        logging.basicConfig(level=logging.INFO,
+                            format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
+                            handlers=[
+                                logging.FileHandler(
+                                    f'data/logs/{log_title}_{timestamp}.log', mode='w'),
+                                logging.StreamHandler()
+                            ])
+        per = dwn.Periodical(
+            name=row['title'],
+            uuid=row['uuid'],
+            library='mzk',
+            kramerius_ver='v7',
+            url='https://www.digitalniknihovna.cz/mzk/'
+        )
 
-# per = dwn.Periodical(
-#     name='Ibero-Americana Pragensia',
-#     uuid='uuid:72c440c0-ae90-11eb-94e5-005056827e52',
-#     library='mzk',
-#     kramerius_ver='v7',
-#     url='https://www.digitalniknihovna.cz/mzk/',
-# )
+        driver = dwn.setup_driver(headless=True)
+        per.find_children('periodical', per.uuid, per.root, driver)
+        per.save(f'data/{log_title}_{timestamp}.json')
 
-# per = dwn.Periodical(
-#     name='Národopisná revue',
-#     uuid='uuid:6d522af0-fd50-11e4-92a1-5ef3fc9bb22f',
-#     library='mzk',
-#     kramerius_ver='v7',
-#     url='https://www.digitalniknihovna.cz/mzk/'
-# )
-
-
-driver = dwn.setup_driver(headless=True)
-per.find_children('periodical', per.uuid, per.root, driver)
-per.save_tree(
-    f'data/frenstat_new_{timestamp}.json')
-per.save(
-    f'data/frenstat_object_{timestamp}.json')
-
-dwn.teardown(driver)
+        dwn.teardown(driver)
