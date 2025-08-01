@@ -1,4 +1,4 @@
-import DwnKramerius as dwn
+from DwnKramerius import Periodical
 import logging
 import datetime
 import csv
@@ -18,16 +18,24 @@ with open(PATH) as f:
                                     f'data/logs/{log_title}_{timestamp}.log', mode='w'),
                                 logging.StreamHandler()
                             ])
-        per = dwn.Periodical(
+        per = Periodical(
             name=row['title'],
             uuid=row['uuid'],
             library='mzk',
-            kramerius_ver='v7',
-            url='https://www.digitalniknihovna.cz/mzk/'
+            kramerius_ver=7,
+            url='https://www.digitalniknihovna.cz/mzk/',
+            api_url='https://api.kramerius.mzk.cz'
         )
 
-        driver = dwn.setup_driver(headless=True)
-        per.find_children('periodical', per.uuid, per.root, driver)
-        per.save(f'data/{log_title}_{timestamp}.json')
 
-        dwn.teardown(driver)
+# per = Periodical(
+#     'ibero',
+#     'uuid:72c440c0-ae90-11eb-94e5-005056827e52',
+#     'mzk',
+#     '7',
+#     'https://www.digitalniknihovna.cz/mzk/',
+#     'https://api.kramerius.mzk.cz',
+# )
+
+# per.find_children()
+# per.save('data/ibero_api.json')
