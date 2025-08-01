@@ -21,11 +21,11 @@ class KramVer(Enum):
 
     Parameters
     ----------
-    Enum : int
-        7 or 5
+    Enum : str
+        '7' or '5'
     """
-    V7 = 7
-    V5 = 5
+    V7 = '7'
+    V5 = '5'
 
 
 class KramScraperBase():
@@ -56,6 +56,9 @@ class KramScraperBase():
     get_response()
         Get response from a given URL.
         Throw an exception if the response is not ok.
+
+    _check_version()
+        Check that the version of API is correct.
     """
     INFO: str
     VER: KramVer
@@ -120,6 +123,25 @@ class KramScraperBase():
             raise Exception(err_msg)
         return resp
 
+    def _check_version(self) -> None:
+        """Check that the Kramerius API version is correct.
+
+        Raises
+        ------
+        ValueError
+            Kramerius API returns a version different from 5|7.x.x.
+        """
+        info = self.url + self.INFO
+        resp = self.get_response(info)
+        ver = resp.json()['version']
+        if ver[0] == self.VER.value:
+            logging.info(
+                f'Scraper version ({self.VER}) matches Kramerius API version ({ver})')
+        else:
+            msg = f'Expected version {self.VER.value}.x.x, got {ver}'
+            logging.warning(msg)
+            raise ValueError(msg)
+
 
 class KramScraperV7(KramScraperBase):
     """Scraper class for Kramerius version 7.
@@ -134,6 +156,7 @@ class KramScraperV7(KramScraperBase):
         https://k7.inovatika.dev/search/openapi/client/v7.0/index.html
         https://github.com/ceskaexpedice/kramerius/wiki/Kramerius-REST-API-verze-7.0
         https://github.com/ceskaexpedice/kramerius/blob/master/installation/solr-9.x/search/conf/managed-schema
+        https://docs.google.com/spreadsheets/d/1DoDnSIGPqPnYbb0U2RSNLKm9eAY2FQNimJyTPeQsC2A/edit?gid=0#gid=0
 
     tree : nx.DiGraph()
         The tree of the digited periodical.
@@ -141,9 +164,6 @@ class KramScraperV7(KramScraperBase):
 
     Methods
     -------
-    _check_version()
-        Check that the version of API is 7.
-
     _make_struct_url()
         Make a URL for a structure request.
 
@@ -170,25 +190,6 @@ class KramScraperV7(KramScraperBase):
         super().__init__(url)
         self._check_version()
         self.tree = nx.DiGraph()
-
-    def _check_version(self) -> None:
-        """Check that the Kramerius API version is 7.
-
-        Raises
-        ------
-        ValueError
-            Kramerius API returns a version different from 7.x.x.
-        """
-        info = self.url + self.INFO
-        resp = req.get(info)
-        ver = resp.json()['version']
-        if ver[0] == self.VER.value:
-            logging.info(
-                f'Scraper version ({self.VER}) matches Kramerius API version ({ver})')
-        else:
-            msg = f'Expected version {self.VER.value}.x.x, got {ver}'
-            logging.warning(msg)
-            raise ValueError(msg)
 
     def _make_struct_url(self, uuid: str) -> str:
         return self.url+self.ITEMS+uuid+self.STRUCT
@@ -262,6 +263,7 @@ class KramScraperV7(KramScraperBase):
 
 class KramScraperV5(KramScraperBase):
     ...
+    INFO = '/search/api/v5.0/info'
 
 
 class Periodical:
@@ -322,7 +324,7 @@ class Periodical:
                  name: str,
                  uuid: str,
                  library: str,
-                 kramerius_ver: int,
+                 kramerius_ver: str,
                  url: str,
                  api_url: str,
                  tree=nx.DiGraph(),
@@ -352,7 +354,7 @@ class Periodical:
         Exception
             Only V7 is supported
         """
-        if self.kramerius_ver is KramVer.V7.value:
+        if self.kramerius_ver == KramVer.V7.value:
             self.scraper = KramScraperV7(self.api_url)
         else:
             raise Exception('Only V7 is supported')
