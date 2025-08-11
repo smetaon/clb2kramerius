@@ -194,7 +194,7 @@ class KramScraperBase():
             f'Found {len(children)} children of {model} `{par_id}` ({parent_uuid})')
         for child in children:
             child_uuid = child['pid']
-            child_model, child_title = self._find_node_details(child_uuid)
+            child_model, child_title = self._find_node_details(child)
             child_id = par_id + self.sep + child_title
 
             self.tree.add_edge(par_id, child_id)
@@ -301,27 +301,27 @@ class KramScraperV7(KramScraperBase):
         -------
         list[dict]
             List of children in the form
-            {'pid':___, 'relation':___}
+            `{'pid':___, 'relation':___}`
             (`relation` is not used)
         """
         par_url = self._make_struct_url(uuid)
         resp = self.get_response(par_url)
         return resp.json()['children']['own']
 
-    def _find_node_details(self, node: str) -> tuple[str, str]:
+    def _find_node_details(self, node: dict) -> tuple[str, str]:
         """Make a request for details about a UUID.
 
         Parameters
         ----------
-        node : str
-            UUID.
+        node : dict
+            A node in the format `{'pid':___, 'relation':___}`
 
         Returns
         -------
         tuple[str, str]
             `model` and `title.search` parameters from Kramerius.
         """
-        detail_url = self._make_detail_url(node)
+        detail_url = self._make_detail_url(node['pid'])
         resp = self.get_response(detail_url)
         # this JSON response parameters could vary from library to library
         model = resp.json()['response']['docs'][0]['model']
@@ -405,7 +405,7 @@ class KramScraperV5(KramScraperBase):
         -------
         list[dict]
             List of children in format
-            {'pid':___, 'model':___, 'details':{'volumeNumber':___, 'year':___}}
+            `{'pid':___, 'model':___, 'details':{'volumeNumber':___, 'year':___}}`
         """
         url = self._make_children_url(uuid)
         resp = self.get_response(url)
@@ -435,7 +435,7 @@ class KramScraperV5(KramScraperBase):
         Returns
         -------
         tuple[str, str]
-            Model, title (=page/issue/volume number).
+            Model, title (= page/issue/volume number).
         """
         model = node['model']
         details = node['details']
@@ -533,7 +533,7 @@ class Periodical:
         Raises
         ------
         Exception
-            Only V7 is supported
+            Only V7 and V5 is supported
         """
         if self.kramerius_ver == KramVer.V7.value:
             self.scraper = KramScraperV7(self.api_url)
