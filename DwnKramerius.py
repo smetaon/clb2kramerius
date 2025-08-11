@@ -14,6 +14,7 @@ class Library(Enum):
         Acronym of a library.
     """
     MZK = 'mzk'
+    NKP = 'nkp'
 
 
 class KramVer(Enum):
@@ -40,11 +41,15 @@ class KramScraperBase():
     sep : str
         Separator used in keys when downloading from Kramerius. By default `/`.
 
+    tree : nx.DiGraph()
+        The tree of the digited periodical.
+        Keys are made by concatenating volume/issue/page number.
+
     INFO : str
         String to pass to API to receive info about Kramerius installation.
 
     VER : KramVer
-        Kramerius version.
+        Kramerius version. So far, 5 and 7.
 
 
     Methods
@@ -59,6 +64,15 @@ class KramScraperBase():
 
     _check_version()
         Check that the version of API is correct.
+
+    dfs()
+        Perform DFS to find children.
+        Functions used to request API are defined by subclasses.
+
+    return_tree()
+        Return the downloaded tree.
+        Intended to be passed to a `Periodical` object.        
+
     """
     INFO: str
     VER: KramVer
@@ -66,6 +80,7 @@ class KramScraperBase():
     def __init__(self, url: str, sep='/') -> None:
         self.url = url
         self.sep = sep
+        self.tree = nx.DiGraph()
         self._check_url()
 
     def _check_url(self):
@@ -80,7 +95,7 @@ class KramScraperBase():
         """
         if self.url[-1] == '/':
             raise ValueError(
-                f'API URL should not end with `/`, but `{self.url}`')
+                f'API URL should not end with `/` `{self.url}`')
 
         info = self.url+self.INFO
         resp = req.get(info)
@@ -129,7 +144,7 @@ class KramScraperBase():
         Raises
         ------
         ValueError
-            Kramerius API returns a version different from 5|7.x.x.
+            Kramerius API returns a version different from [57].x.x.
         """
         info = self.url + self.INFO
         resp = self.get_response(info)
@@ -142,69 +157,23 @@ class KramScraperBase():
             logging.warning(msg)
             raise ValueError(msg)
 
+    def _find_children(self, uuid: str):
+        raise NotImplementedError("Subclass needs to define this.")
 
-class KramScraperV7(KramScraperBase):
-    """Scraper class for Kramerius version 7.
+    def _find_node_details(self, node):
+        raise NotImplementedError("Subclass needs to define this.")
 
-    Attributes
-    ----------
-    url, sep, INFO, VER
-        See superclass.
-
-    ITEMS, STRUCT, DETAILS : str
-        Request URLs. For more detail, see
-        https://k7.inovatika.dev/search/openapi/client/v7.0/index.html
-        https://github.com/ceskaexpedice/kramerius/wiki/Kramerius-REST-API-verze-7.0
-        https://github.com/ceskaexpedice/kramerius/blob/master/installation/solr-9.x/search/conf/managed-schema
-        https://docs.google.com/spreadsheets/d/1DoDnSIGPqPnYbb0U2RSNLKm9eAY2FQNimJyTPeQsC2A/edit?gid=0#gid=0
-
-    tree : nx.DiGraph()
-        The tree of the digited periodical.
-        Keys are made by concatenating volume/issue/page number.
-
-    Methods
-    -------
-    _make_struct_url()
-        Make a URL for a structure request.
-
-    _make_detail_url()
-        Make a URL for a detail request about a given UUID.
-
-    find_children()
-        Perform DFS to find children.
-
-    return_tree()
-        Return the downloaded tree.
-        Intended to be passed to a Periodical object.
-
-    _find_node_details()
-        Return a model and a title of a UUID.
-    """
-    INFO = '/search/api/client/v7.0/info'
-    ITEMS = '/search/api/client/v7.0/items/'
-    STRUCT = '/info/structure'
-    DETAILS = '/search/api/client/v7.0/search?fl=title.search,model&q=pid:'
-    VER = KramVer.V7
-
-    def __init__(self, url: str) -> None:
-        super().__init__(url)
-        self._check_version()
-        self.tree = nx.DiGraph()
-
-    def _make_struct_url(self, uuid: str) -> str:
-        return self.url+self.ITEMS+uuid+self.STRUCT
-
-    def _make_detail_url(self, uuid: str) -> str:
-        # quotes have to a part of the API request
-        return self.url+self.DETAILS+f'"{uuid}"'
-
-    def find_children(self, parent_uuid: str, model: str, par_id: str) -> None:
+    def dfs(self, parent_uuid: str, model: str, par_id: str) -> None:
         """Perform DFS to find children.
 
-        To find complete information in V7, we have to perform two steps.
-        First, we perform a _structure_ request to find all children of a node.
-        Then, we request details for each to node to fill in page and model.
-        (In V5, we can do this by simply requesting _children_.)
+        Kramerius versions differ in requests and responses to 
+        find children and details.
+
+        In V5, it is enough to send a request for _children_.
+        Each child has information about `model` and page number.
+
+        In V7, we have to first send a request for a list of children.
+        Then, we have to ask for details of each children.
 
         Parameters
         ----------
@@ -216,11 +185,11 @@ class KramScraperV7(KramScraperBase):
             Key to the parent node.
             Keys are made by concatenating volume/issue/page number.
         """
-        if model == 'page':  # we could also check if it has no children
-            return
-        par_url = self._make_struct_url(parent_uuid)
-        resp = self.get_response(par_url)
-        children = resp.json()['children']['own']
+        children = self._find_children(parent_uuid)
+
+        if len(children) == 0:
+            return  # we could also check that model == 'page'
+
         logging.info(
             f'Found {len(children)} children of {model} `{par_id}` ({parent_uuid})')
         for child in children:
@@ -234,14 +203,78 @@ class KramScraperV7(KramScraperBase):
 
             logging.info(
                 f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
-            self.find_children(child_uuid, child_model, child_id)
+            self.dfs(child_uuid, child_model, child_id)
         return
 
     def return_tree(self) -> nx.DiGraph:
+        """Return the downloaded tree.
+        Intended to be passed to a `Periodical` object. 
+
+        Returns
+        -------
+        nx.DiGraph
+            The downloaded tree.
+        """
         return self.tree
 
-    def _find_node_details(self, uuid: str) -> tuple[str, str]:
-        """Make a request for details about a UUID.
+
+class KramScraperV7(KramScraperBase):
+    """Scraper class for Kramerius version 7.
+
+    Attributes
+    ----------
+    url, sep, tree, INFO, VER
+        See superclass.
+
+    ITEMS, STRUCT, DETAILS : str
+        Request URLs. For more detail, see
+        https://k7.inovatika.dev/search/openapi/client/v7.0/index.html
+        https://github.com/ceskaexpedice/kramerius/wiki/Kramerius-REST-API-verze-7.0
+        https://github.com/ceskaexpedice/kramerius/blob/master/installation/solr-9.x/search/conf/managed-schema
+        https://docs.google.com/spreadsheets/d/1DoDnSIGPqPnYbb0U2RSNLKm9eAY2FQNimJyTPeQsC2A/edit?gid=0#gid=0
+
+
+    Methods
+    -------
+    _make_struct_url()
+        Make a URL for a structure request.
+
+    _make_detail_url()
+        Make a URL for a detail request about a given UUID.
+
+    _find_children()
+        Find children of a given UUID (JSON request).
+
+    _find_node_details()
+        Return a model and a title of a UUID.
+    """
+    INFO = '/search/api/client/v7.0/info'
+    ITEMS = '/search/api/client/v7.0/items/'
+    STRUCT = '/info/structure'
+    DETAILS = '/search/api/client/v7.0/search?fl=title.search,model&q=pid:'
+    VER = KramVer.V7
+
+    def __init__(self, url: str, sep='/') -> None:
+        super().__init__(url, sep)
+        self._check_version()
+
+    def _make_struct_url(self, uuid: str) -> str:
+        """Generate URL for a structure request.
+
+        Parameters
+        ----------
+        uuid : str
+            UUID
+
+        Returns
+        -------
+        str
+            Link to a structure URL.
+        """
+        return self.url+self.ITEMS+uuid+self.STRUCT
+
+    def _make_detail_url(self, uuid: str) -> str:
+        """Make a URL for a detail request about a given UUID.
 
         Parameters
         ----------
@@ -250,20 +283,168 @@ class KramScraperV7(KramScraperBase):
 
         Returns
         -------
+        str
+            Link to a request for UUID detail.
+        """
+        # quotes have to a part of the API request
+        return self.url+self.DETAILS+f'"{uuid}"'
+
+    def _find_children(self, uuid: str) -> list[dict]:
+        """Find children of a given UUID (JSON request).
+
+        Parameters
+        ----------
+        uuid : str
+            UUID.
+
+        Returns
+        -------
+        list[dict]
+            List of children in the form
+            {'pid':___, 'relation':___}
+            (`relation` is not used)
+        """
+        par_url = self._make_struct_url(uuid)
+        resp = self.get_response(par_url)
+        return resp.json()['children']['own']
+
+    def _find_node_details(self, node: str) -> tuple[str, str]:
+        """Make a request for details about a UUID.
+
+        Parameters
+        ----------
+        node : str
+            UUID.
+
+        Returns
+        -------
         tuple[str, str]
             `model` and `title.search` parameters from Kramerius.
         """
-        detail_url = self._make_detail_url(uuid)
+        detail_url = self._make_detail_url(node)
         resp = self.get_response(detail_url)
-        # this could vary from library to library
+        # this JSON response parameters could vary from library to library
         model = resp.json()['response']['docs'][0]['model']
         title = resp.json()['response']['docs'][0]['title.search']
         return (model, title)
 
 
 class KramScraperV5(KramScraperBase):
-    ...
+    """Scraper class for Kramerius version 5.
+
+    Attributes
+    ----------
+    url, sep, tree, INFO, VER
+        See superclass.
+
+    ITEM, CHILDREN : str
+        Request URLs. For more detail, see
+
+
+    Methods
+    -------
+    _make_struct_url()
+        Make a URL for a structure request.
+
+    _make_detail_url()
+        Make a URL for a detail request about a given UUID.
+
+    _find_children()
+        Find children of a given UUID (JSON request).
+
+    return_tree()
+        Return the downloaded tree.
+        Intended to be passed to a Periodical object.
+
+    _find_node_details()
+        Return a model and a title of a UUID.
+
+    _make_children_url()
+        Create URL for a children request.
+    """
+
     INFO = '/search/api/v5.0/info'
+    ITEM = '/search/api/v5.0/item/'
+    CHILDREN = '/children'
+    VER = KramVer.V5
+    MODEL_TITLE_DICT = {
+        # model : title
+        'periodicalvolume': 'volumeNumber',
+        'periodicalitem': 'partNumber',
+        'page': 'pagenumber'
+    }
+
+    def __init__(self, url: str, sep='/') -> None:
+        super().__init__(url, sep)
+        self._check_version()
+
+    def _make_children_url(self, uuid: str) -> str:
+        """Create URL for a children request.
+
+        Parameters
+        ----------
+        uuid : str
+            UUID.
+
+        Returns
+        -------
+        str
+            Link to a children request.
+        """
+        return self.url+self.ITEM+uuid+self.CHILDREN
+
+    def _find_children(self, uuid: str) -> list[dict]:
+        """Find children of a given UUID (JSON request).
+
+        Parameters
+        ----------
+        uuid : str
+            UUIS
+
+        Returns
+        -------
+        list[dict]
+            List of children in format
+            {'pid':___, 'model':___, 'details':{'volumeNumber':___, 'year':___}}
+        """
+        url = self._make_children_url(uuid)
+        resp = self.get_response(url)
+        lst = []
+        if len(resp.json()) == 0:
+            return lst  # empty
+        for child in resp.json():
+            d = {
+                'pid': child['pid'],
+                'model': child['model'],
+                'details': child['details']
+            }
+            lst.append(d)
+        return lst
+
+    def _find_node_details(self, node: dict) -> tuple[str, str]:
+        """Return a model and a title of a UUID.
+
+        Parameters
+        ----------
+        node : dict
+            Node as returned by API.
+            It has the following structure.
+            `{'pid':___, 'model'___, 'details':{'volumeNumber':___, 'year': ___}}`
+
+
+        Returns
+        -------
+        tuple[str, str]
+            Model, title (=page/issue/volume number).
+        """
+        model = node['model']
+        details = node['details']
+        if model not in self.MODEL_TITLE_DICT:
+            # asi to bude chtít udělat nějaké uuid pro tenhle případ, abych vždycyky měl strom
+            return (model, 'n_not_found')
+
+        title = details[self.MODEL_TITLE_DICT[model]].strip()
+        return (model, title)
 
 
 class Periodical:
@@ -356,8 +537,10 @@ class Periodical:
         """
         if self.kramerius_ver == KramVer.V7.value:
             self.scraper = KramScraperV7(self.api_url)
+        elif self.kramerius_ver == KramVer.V5.value:
+            self.scraper = KramScraperV5(self.api_url)
         else:
-            raise Exception('Only V7 is supported')
+            raise Exception('Only V7 and V5 is supported')
 
     def _check_url(self):
         """Check if the URL format is correct.
@@ -367,8 +550,8 @@ class Periodical:
         ValueError
             URL should end with `/`
         """
-        if self.url[-1] != '/':
-            raise ValueError('URL should end with `/`.')
+        if self.url[-1] == '/':
+            raise ValueError('URL should not end with `/`.')
 
     def __str__(self) -> str:
         return f"{self.name} UUID={self.uuid}, lib={self.library}, url={self.url}, ver={self.kramerius_ver}, api_url={self.api_url}"
@@ -399,7 +582,7 @@ class Periodical:
         return
 
     def save(self, path: str) -> None:
-        """Save the object to path in JSON.
+        """Save the object parameters to path in JSON.
 
         Parameters
         ----------
@@ -449,8 +632,11 @@ class Periodical:
         return self.url+'/'+self.link_uuid+'/'+uuid
 
     def find_children(self) -> None:
+        """Use depth-first search to find children starting 
+        from UUID of a periodical.
+        """
         self._select_scraper()
-        self.scraper.find_children(self.uuid, 'periodical', self.root)
+        self.scraper.dfs(self.uuid, 'periodical', self.root)
         self.tree = self.scraper.return_tree()
 
     def link(self, volume: str | None, issue: str | None, page: str | None) -> str | None:
@@ -488,11 +674,11 @@ class Periodical:
                 logging.info(
                     f'Node `{path_to_page}` not found, trying path without issue `{path_to_issue}`')
                 return self.link(volume, None, page)
-            logging.warning(f'Node `{path_to_page}` was not found!')
+            logging.warning(f'🔴 Node `{path_to_page}` was not found!')
             return None
         else:
             page_url = self.make_url(page_node['uuid'])
-            logging.info(f'Success! Node `{path_to_page}` found: {page_url}')
+            logging.info(f'🟢 Success! Node `{path_to_page}` found: {page_url}')
             return page_url
 
     def _children_are_page(self, node: str) -> bool:
@@ -508,6 +694,7 @@ class Periodical:
         bool
             `True` if all children have model `page`, `False` otherwise
         """
+        # TODO: do I need it now? Given I switched to API...
         try:
             self.tree.nodes[node]
         except KeyError:
@@ -527,7 +714,7 @@ class Periodical:
         Taky hodně záleží na tom, jak dobře budu parsovat 773q.
         Je to k zvážení.
         """
-        # TODO: implement (?)
+        # TODO: implement bfs (?)
         raise NotImplementedError
 
 
