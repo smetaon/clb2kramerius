@@ -9,6 +9,8 @@
 2. V naprostém protikladu je 002915442: 40. ročník má pouze jedno číslo. V Krameriovi je vedené jako 1, v ČLB vůbec není 
     - 773q je 40<88, úplně bez čísla
     - v současné chvíli funguje
+- našel jsem 56 391 záznamů, které nemají uvedené issue (tj. styl 1<100) (tj. zhruba 8.5 %) (`cat all_marc.csv | grep ':' -v | wc -l`)
+- např 001738573 
 
 ### Stav
 Částečně vyřešené (co když mám cestu k issue z Krameria, ale v člb ji nemám? To by se asi nemělo stát...)
@@ -16,3 +18,8 @@ Když chybí `issue` v Krameriovi, ale je v člb, podívám se, jestli jsou vše
 
 ## Nekonzistentní číslování _volume_
 - např. 001532746 má 773q `2:4<156`, ale v Krameriovi je to volume vedené jako `2 (29)`
+
+### Stav
+Úplně nevím, co s tím. V Krameriovi je prostě jiná cesta a nenapadá mě, jak ji tam doplnit.
+Asi je třeba změnit záznam v Krameriovi. Třeba to prohnat funkcí, která odstraní všechno v závorkách. Je otázka, jestli to nerozbije cesty.
+
