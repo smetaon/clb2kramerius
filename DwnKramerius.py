@@ -641,17 +641,38 @@ class Periodical:
         self.scraper.dfs(self.uuid, 'periodical', self.root)
         self.tree = self.scraper.return_tree()
 
+    def _link(self, path: str) -> str | None:
+        """Try making a URL to a given path.
+
+        Parameters
+        ----------
+        path : str
+            Path to a node.
+
+        Returns
+        -------
+        str | None
+            Link to a node or `None` if the path leads nowhere.
+        """
+        try:
+            page_node = self.tree.nodes[path]
+        except KeyError:
+            return None
+        else:
+            page_url = self.make_url(page_node['uuid'])
+            return page_url
+
     def link(self, volume: str | None, issue: str | None, page: str | None) -> str | None:
-        """Make a URL to a page with a given path.
+        """Try making a URL to a given page.
 
         Parameters
         ----------
         volume : str | None
-            Volume of a periodical.
+            Volume number.
         issue : str | None
-            Issue 
+            Issue number.
         page : str | None
-            Page of a periodical.
+            Page number.
 
         Returns
         -------
@@ -660,26 +681,25 @@ class Periodical:
         """
         path_to_page = self._make_path_to_node(
             [self.root, volume, issue, page])
-        try:
-            page_node = self.tree.nodes[path_to_page]
-        except KeyError:
-            # It can happen that there is no `issue` in člb record, but there is an issue number from Kramerius.
-            # E.g. we have 773q '25<100' but from Kramerius we have '25/2/100'.
-            # This should only happen if the volume has one issue, so we can
-            # check that volume has only one child and try path '25:{the only child of vol}<page'
-            if self._volume_has_one_issue(volume):
-                new_issue = self._find_only_child_of_vol(volume)
-                new_path_to_page = self._make_path_to_node(
-                    [self.root, volume, new_issue, page])
-                logging.info(
-                    f'Node `{path_to_page}` not found, but it has only one child. Trying path with the one child `{new_path_to_page}`')
-                return self.link(volume, new_issue, page)
+        link_to_page = self._link(path_to_page)
+
+        # It can happen that there is no `issue` in člb record, but there is an issue number from Kramerius.
+        # E.g. we have 773q '25<100' but from Kramerius we have '25/2/100'.
+        # This should only happen if the volume has one issue, so we can
+        # check that volume has only one child and try path '25:{the only child of vol}<page'
+        if self._volume_has_one_issue(volume):
+            new_issue = self._find_only_child_of_vol(volume)
+            new_path_to_page = self._make_path_to_node(
+                [self.root, volume, new_issue, page])
+            logging.info(
+                f'Node `{path_to_page}` not found, but it has only one child. Trying path with the one child `{new_path_to_page}`')
+            link_to_page = self._link(new_path_to_page)
+        if link_to_page is None:
             logging.warning(f'🔴 Node `{path_to_page}` was not found!')
             return None
         else:
-            page_url = self.make_url(page_node['uuid'])
-            logging.info(f'🟢 Success! Node `{path_to_page}` found: {page_url}')
-            return page_url
+            logging.info(f'🟢 Node `{path_to_page}` found: {link_to_page}')
+            return link_to_page
 
     def _volume_has_one_issue(self, volume: str | None) -> bool:
         """Check that given volume has only one child (= one issue).
@@ -695,6 +715,10 @@ class Periodical:
             `True` if volume has one child, `False` otherwise.
         """
         path_to_vol = self._make_path_to_node([self.root, volume])
+        try:
+            self.tree.nodes[path_to_vol]
+        except KeyError:
+            return False
         children = list(self.tree.successors(path_to_vol))
         return True if len(children) == 1 else False
 
