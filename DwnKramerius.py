@@ -413,12 +413,14 @@ class KramScraperV5(KramScraperBase):
         if len(resp.json()) == 0:
             return lst  # empty
         for child in resp.json():
-            d = {
-                'pid': child['pid'],
-                'model': child['model'],
-                'details': child['details']
-            }
-            lst.append(d)
+            if child['model'] in self.MODEL_TITLE_DICT:
+                d = {
+                    'pid': child['pid'],
+                    'model': child['model'],
+                    'details': child['details']
+                }
+                # do not include `internalpart` etc (see eg. https://ndk.cz/periodical/uuid:f037984f-200b-402d-94c3-8df539168e78)
+                lst.append(d)
         return lst
 
     def _find_node_details(self, node: dict) -> tuple[str, str]:
@@ -656,24 +658,22 @@ class Periodical:
         str | None
             Link to a page or `None` if the path leads nowhere.
         """
-        path_to_page = self.id_sep.join(
-            filter(None, [self.root, volume, issue, page]))
+        path_to_page = self._make_path_to_node(
+            [self.root, volume, issue, page])
         try:
             page_node = self.tree.nodes[path_to_page]
         except KeyError:
-            path_to_issue = self.id_sep.join(filter(None, [self.root, volume]))
-            # It can happen, that
-            # a) We did not download issue number from Kramerius
-            #   (that happens when there is only one issue in a volume)
-            #   but it is present in the člb record.
-            # TODO: what if there is no `issue` in člb record, but there is an issue number from Kramerius?
-            # e.g. we have 773q '25<100' but from Kramerius we have '25/2/100'
-            # this should only happen if the volume has one issue, so we can
+            # It can happen that there is no `issue` in člb record, but there is an issue number from Kramerius.
+            # E.g. we have 773q '25<100' but from Kramerius we have '25/2/100'.
+            # This should only happen if the volume has one issue, so we can
             # check that volume has only one child and try path '25:{the only child of vol}<page'
-            if self._children_are_page(path_to_issue):
+            if self._volume_has_one_issue(volume):
+                new_issue = self._find_only_child_of_vol(volume)
+                new_path_to_page = self._make_path_to_node(
+                    [self.root, volume, new_issue, page])
                 logging.info(
-                    f'Node `{path_to_page}` not found, trying path without issue `{path_to_issue}`')
-                return self.link(volume, None, page)
+                    f'Node `{path_to_page}` not found, but it has only one child. Trying path with the one child `{new_path_to_page}`')
+                return self.link(volume, new_issue, page)
             logging.warning(f'🔴 Node `{path_to_page}` was not found!')
             return None
         else:
@@ -681,28 +681,64 @@ class Periodical:
             logging.info(f'🟢 Success! Node `{path_to_page}` found: {page_url}')
             return page_url
 
-    def _children_are_page(self, node: str) -> bool:
-        """Check wheter all children of a node have model `page`.
+    def _volume_has_one_issue(self, volume: str | None) -> bool:
+        """Check that given volume has only one child (= one issue).
 
         Parameters
         ----------
-        node : str
-            A path to a node.
+        volume : str | None
+            Volume number (not a path).
 
         Returns
         -------
         bool
-            `True` if all children have model `page`, `False` otherwise
+            `True` if volume has one child, `False` otherwise.
         """
-        # TODO: do I need it now? Given I switched to API...
-        try:
-            self.tree.nodes[node]
-        except KeyError:
-            return False
-        for succ in self.tree.successors(node):
-            if self.tree.nodes[succ]['model'] != 'page':
-                return False
-        return True
+        path_to_vol = self._make_path_to_node([self.root, volume])
+        children = list(self.tree.successors(path_to_vol))
+        return True if len(children) == 1 else False
+
+    def _find_only_child_of_vol(self, volume: str | None) -> str:
+        """Find issue number of an issue that is the only child of a volume.
+
+        Parameters
+        ----------
+        volume : str | None
+            Volume number (not a path).
+
+        Returns
+        -------
+        str
+            Issue number (not a path).
+
+        Raises
+        ------
+        ValueError
+            Volume has more than one child.
+        """
+        path_to_vol = self._make_path_to_node([self.root, volume])
+        children = list(self.tree.successors(path_to_vol))
+        if len(children) != 1:
+            raise ValueError('More than one child!')
+        issue_path = children[0]
+        issue = issue_path.split('/')[-1]
+        return issue
+
+    def _make_path_to_node(self, lst: list[str | None]) -> str:
+        """Make path to a node by concatenating root, volume, issue, page numbers.
+
+        Parameters
+        ----------
+        lst : list[str  |  None]
+            Root, volume, issue, page (anything can be omitted).
+
+        Returns
+        -------
+        str
+            Path to a node.
+        """
+        path = self.id_sep.join(filter(None, lst))
+        return path
 
     def bfs(self):
         """
