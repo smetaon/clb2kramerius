@@ -1,25 +1,61 @@
 # Problems
 ## Nekonzistentní číslování _issue_
-- když je více čísel v ročníku, vše je ok
-1. 002288591: 34. ročník má pouze jedno číslo v Krameriovi i v ČLB vedené jako 1-4 (resp. 1/4 v člb)
-    - 773q je vedené jako 34:1/4<90
-    - z Krameria dostanu cestu 34<90
-    - v této chvíli neumím nalinkovat na Krameria, protože při stahování dat z něj automaticky přeskakuje číslo,pokud je v ročníku pouze jedno (tj. z ročníku jde hned na stránku)
-    - šlo by asi opravit zásahem do stahování z Krameria (ale bylo by to ještě křehčí)
-2. V naprostém protikladu je 002915442: 40. ročník má pouze jedno číslo. V Krameriovi je vedené jako 1, v ČLB vůbec není 
-    - 773q je 40<88, úplně bez čísla
-    - v současné chvíli funguje
-- našel jsem 56 391 záznamů, které nemají uvedené issue (tj. styl 1<100) (tj. zhruba 8.5 %) (`cat all_marc.csv | grep ':' -v | wc -l`)
-- např 001738573 
+### Popis
+Když je více čísel v ročníku, vše je ok.
 
-### Stav
-Částečně vyřešené (co když mám cestu k issue z Krameria, ale v člb ji nemám? To by se asi nemělo stát...)
-Když chybí `issue` v Krameriovi, ale je v člb, podívám se, jestli jsou všechni potomci `volume` stránky (tj. `'model'=='page'`) a pokud ano, zkusím vypustit `issue` z hledané cesty. Viz commit `cf9f5ec9791449ba9b55b77b95c35524396eb253`.
+Ale může se stát, že záznam v člb neobsahuje issue (třeba `5<6`). 
+To se stává, když je pouze jedno issue v celém volume.
+
+Našel jsem 56 391 záznamů, které nemají uvedené issue (tj. styl 1<100) (tj. zhruba 8.5 %) (`cat all_marc.csv | grep ':' -v | wc -l`)
+Např. 001738573.
+
+### Stav 
+🟢
+Vyřešené tak, že pokud nenajdu stránku a volume má pouze jedno dítě (v datech z Krameria), tak zkusím číslo tohoto dítěte doplnit do cesty a najít ji znova.
+
 
 ## Nekonzistentní číslování _volume_
-- např. 001532746 má 773q `2:4<156`, ale v Krameriovi je to volume vedené jako `2 (29)`
+Např. [001532746](https://vufind.ucl.cas.cz/Record/001532746) má 773q `2:4<156`, ale v Krameriovi je to volume vedené jako `2 (29)`
+
+Bohužel je i v tomhle člb nekonzistentní.
+Např. [001525270](https://vufind.ucl.cas.cz/Record/001525270) má 773q `1 [28]:4<231`, ale další záznam ze stejného periodika [001532741](https://vufind.ucl.cas.cz/Record/001532741) má `2:3<99`.
+
 
 ### Stav
-Úplně nevím, co s tím. V Krameriovi je prostě jiná cesta a nenapadá mě, jak ji tam doplnit.
-Asi je třeba změnit záznam v Krameriovi. Třeba to prohnat funkcí, která odstraní všechno v závorkách. Je otázka, jestli to nerozbije cesty.
+🔴
+Asi je třeba změnit podobu záznamu v Krameriovi. Třeba to prohnat funkcí, která odstraní všechno v závorkách. Je otázka, jestli to nerozbije cesty.
 
+Nebo to zkusit namatchovat na regexem a nic neměnit (asi je lepší nic neměnit).
+
+
+## Slánský obzor
+Řekl bych, že je špatně vedený v Krameriovi. 
+V člb sice sedí název a issn, ale roky vydání jsou úplně jiné. 
+Periodikum v Krameriovi je z 1. poloviny 20. století a záznamy v člb jsou z 21. století.
+Viz třeba [001567998](https://vufind.ucl.cas.cz/Record/001567998#details), [kramerius](https://kramerius5.nkp.cz/periodical/uuid:597d4560-66fb-11de-ad0b-000d606f5dc6).
+
+
+# Roadmap
+- Napárování periodik z člb na ta správná v digitálních knihovnách.
+    - Stačí pro periodikum v člb najít uuid ve správné knihovně
+    - Můžou být problémy s issn a názvy, asi to bude chtít nějakou ruční kontrolu
+    - [fuzzysearch](https://pypi.org/project/fuzzysearch/)
+- Zrychlení stahování dat Krameria
+    - Bylo by fajn zkoušet najít pouze stránky, které jsou v záznamech v člb, místo stahování celého Krameria
+    - Jejich API je nespolehlivé a občas se prostě odmlčí 
+- Jak kontrolovat výsledné odkazy? Může se stát
+    1) Odkaz vede na správnou stránku a správný článek
+    1) Odkaz vede na správnou stránku, ale špatný článek (záznam v člb je špatně)
+        - *Musí zkontrolovat člověk.*
+    1) Cestu ke stránce není
+        - V člb je zapsaná neexistující cesta
+        - Stránka není vůbec digitalizovaná 
+        - *Dokážeme nějak poznat, která z těchto dvou chyb nastala?*
+- Pátá verze Krameria
+    - Je oproti sedmé poněkud nekonzistentní
+- Další knihovny
+    - Zatím především MZK (V7) a NKP (V5)
+
+# Etc
+- issue = číslo
+- volume = ročník
