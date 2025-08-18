@@ -28,6 +28,17 @@ Asi je třeba změnit podobu záznamu v Krameriovi. Třeba to prohnat funkcí, k
 Nebo to zkusit namatchovat na regexem a nic neměnit (asi je lepší nic neměnit).
 
 
+## Pomalé stahování
+I když používáme API, tak je stahování šíleně pomalé.
+A protože je i docela nespolehlivé, tak pro větší periodika často ani nedoběhne do konce.
+
+### Stav
+🔴
+Zkouším implementovat jakousi online verzi, tj. podívám se pouze na stránky, které mají záznamy v člb a ty se pokusím stáhnout.
+Uvidíme, jak to bude fungovat, dost záleží na kvalitě a konzistenci záznamů v člb a Krameriovi.
+
+Jiná možnost by byla implementovat podporu částečného stahování.
+
 ## Slánský obzor
 Řekl bych, že je špatně vedený v Krameriovi. 
 V člb sice sedí název a issn, ale roky vydání jsou úplně jiné. 
@@ -59,3 +70,4 @@ Viz třeba [001567998](https://vufind.ucl.cas.cz/Record/001567998#details), [kra
 # Etc
 - issue = číslo
 - volume = ročník
+- unit = volume / issue / page
