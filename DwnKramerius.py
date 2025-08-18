@@ -3,6 +3,8 @@ import json
 import logging
 from enum import Enum
 import requests as req
+import Parse773
+import csv
 
 
 class Library(Enum):
@@ -82,6 +84,7 @@ class KramScraperBase():
         self.sep = sep
         self.tree = nx.DiGraph()
         self._check_url()
+        self.session = req.Session()
 
     def _check_url(self):
         """Check that API URL is correct and functional.
@@ -131,7 +134,8 @@ class KramScraperBase():
             'Accept-Language': 'en-US,en;q=0.5',
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0',
             'Content-Type': 'application/json'}
-        resp = req.get(url, headers=headers)
+        # resp = req.get(url, headers=headers)
+        resp = self.session.get(url, headers=headers)
         if not resp.ok:
             err_msg = f'Response from {url} is not ok'
             logging.warning(err_msg)
@@ -173,14 +177,14 @@ class KramScraperBase():
         Each child has information about `model` and page number.
 
         In V7, we have to first send a request for a list of children.
-        Then, we have to ask for details of each children.
+        Then, we have to ask for details of each child.
 
         Parameters
         ----------
         parent_uuid : str
-            UUID of a parent node.
+            UUID of the parent node.
         model : str
-            Model paramater of the parent node.
+            `model` parameter of the parent node.
         par_id : str
             Key to the parent node.
             Keys are made by concatenating volume/issue/page number.
@@ -206,6 +210,55 @@ class KramScraperBase():
             self.dfs(child_uuid, child_model, child_id)
         return
 
+    def dfs2(self, parent_uuid: str, model: str, par_id: str, restrictions: list[set], depth: int) -> None:
+        # quick and dirty
+        children = self._find_children(parent_uuid)
+
+        if len(children) == 0:
+            return  # we could also check that model == 'page'
+
+        logging.info(
+            f'Found {len(children)} children of {model} `{par_id}` ({parent_uuid})')
+
+        for child in children:
+            child_uuid = child['pid']
+            child_model, child_title = self._find_node_details(child)
+            if child_title in restrictions[depth]:
+                child_id = par_id + self.sep + child_title
+
+                self.tree.add_edge(par_id, child_id)
+                self.tree.nodes[child_id]['model'] = child_model
+                self.tree.nodes[child_id]['uuid'] = child_uuid
+
+                logging.info(
+                    f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
+                self.dfs2(child_uuid, child_model,
+                          child_id, restrictions, depth+1)
+        return
+
+    def dfs_with_clb_tree(self, parent_uuid: str, model: str, par_id: str, clb_tree: nx.DiGraph, clb_node) -> None:
+        children = self._find_children(parent_uuid)
+
+        if len(children) == 0:
+            return  # we could also check that model == 'page'
+
+        clb_succ = set(clb_tree.successors(clb_node))
+        for child in children:
+            child_uuid = child['pid']
+            child_model, child_title = self._find_node_details(child)
+            child_id = par_id + self.sep + child_title
+            # todo: vyřešit, když chybí issue
+            if child_id in clb_succ:
+
+                self.tree.add_edge(par_id, child_id)
+                self.tree.nodes[child_id]['model'] = child_model
+                self.tree.nodes[child_id]['uuid'] = child_uuid
+
+                logging.info(
+                    f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
+                self.dfs_with_clb_tree(
+                    child_uuid, child_model, child_id, clb_tree, child_id)
+
     def return_tree(self) -> nx.DiGraph:
         """Return the downloaded tree.
         Intended to be passed to a `Periodical` object. 
@@ -227,7 +280,7 @@ class KramScraperV7(KramScraperBase):
         See superclass.
 
     ITEMS, STRUCT, DETAILS : str
-        Request URLs. For more detail, see
+        Request URLs. For more details, see
         https://k7.inovatika.dev/search/openapi/client/v7.0/index.html
         https://github.com/ceskaexpedice/kramerius/wiki/Kramerius-REST-API-verze-7.0
         https://github.com/ceskaexpedice/kramerius/blob/master/installation/solr-9.x/search/conf/managed-schema
@@ -289,7 +342,7 @@ class KramScraperV7(KramScraperBase):
         # quotes have to a part of the API request
         return self.url+self.DETAILS+f'"{uuid}"'
 
-    def _find_children(self, uuid: str) -> list[dict]:
+    def _find_children(self, uuid: str) -> list[dict[str, str]]:
         """Find children of a given UUID (JSON request).
 
         Parameters
@@ -299,7 +352,7 @@ class KramScraperV7(KramScraperBase):
 
         Returns
         -------
-        list[dict]
+        list[dict[str, str]]
             List of children in the form
             `{'pid':___, 'relation':___}`
             (`relation` is not used)
@@ -308,12 +361,12 @@ class KramScraperV7(KramScraperBase):
         resp = self.get_response(par_url)
         return resp.json()['children']['own']
 
-    def _find_node_details(self, node: dict) -> tuple[str, str]:
+    def _find_node_details(self, node: dict[str, str]) -> tuple[str, str]:
         """Make a request for details about a UUID.
 
         Parameters
         ----------
-        node : dict
+        node : dict[str, str]
             A node in the format `{'pid':___, 'relation':___}`
 
         Returns
@@ -323,7 +376,7 @@ class KramScraperV7(KramScraperBase):
         """
         detail_url = self._make_detail_url(node['pid'])
         resp = self.get_response(detail_url)
-        # this JSON response parameters could vary from library to library
+        # these JSON response parameters could vary from library to library
         model = resp.json()['response']['docs'][0]['model']
         title = resp.json()['response']['docs'][0]['title.search']
         return (model, title)
@@ -513,7 +566,9 @@ class Periodical:
                  tree=nx.DiGraph(),
                  id_sep='/',
                  root='root',
-                 link_uuid='uuid'):
+                 link_uuid='uuid',
+                 clb_tree=nx.DiGraph()
+                 ):
         self.name = name
         self.uuid = uuid
         self.library = library
@@ -524,6 +579,7 @@ class Periodical:
         self.id_sep = id_sep
         self.root = root
         self.link_uuid = link_uuid
+        self.clb_tree = clb_tree
 
         self._check_url()
 
@@ -652,7 +708,7 @@ class Periodical:
         Returns
         -------
         str | None
-            Link to a node or `None` if the path leads nowhere.
+            URL to a unit or `None` if the path leads nowhere.
         """
         try:
             page_node = self.tree.nodes[path]
@@ -764,18 +820,60 @@ class Periodical:
         path = self.id_sep.join(filter(None, lst))
         return path
 
-    def bfs(self):
+    def build_clb_tree(self, path: str) -> None:
+        """Build a ČLB tree from MARC 773q records.
+
+        Keys are made by concatenating volume/issue/page.
+
+        Parameters
+        ----------
+        path : str
+            Path to a CSV file with 773q records.
         """
-        Něco jako online verze find_children.
-        DFS mi najde všechno, tohle by snad šlo udělat tak, aby to našlo jen co potřebuju.
-        Tj. dostalo by to 773q z marcu a do šířky by to vyhledávalo.
-        Tím bychom dostali z krameria jenom data o článcích, které jsou v člb.
-        To by mohlo zrychlit proces stahování. Ale taky nemuselo.
-        Taky hodně záleží na tom, jak dobře budu parsovat 773q.
-        Je to k zvážení.
+        # todo: uložit tenhle strom do jsonu
+        with open(path) as f:
+            reader = csv.DictReader(f, delimiter=';')
+            for row in reader:
+                for loc in row['location'].split(';'):
+                    volume, issue, page = Parse773.parse_location(loc)
+                    if issue is None:
+                        issue = 'no_issue'.upper()  # TODO: unify
+                    # modify records HERE
+                    vol_iss_pg = Parse773.normalize(volume, issue, page)
+                    self._add_clb_record(*vol_iss_pg)
+        logging.info(
+            f'Built ČLB tree with Nodes={self.clb_tree.number_of_nodes()}, Edges={self.clb_tree.number_of_edges()}')
+        return
+
+    def _add_clb_record(self, volume: str | None, issue: str | None, page: str | None) -> None:
+        """Add a ČLB MARC record to a ČLB tree.
+
+        Parameters
+        ----------
+        volume : str | None
+            Volume number.
+        issue : str | None
+            Issue number.
+        page : str | None
+            Page number.
+
+        Raises
+        ------
+        ValueError
+            All inputs should be `str`, not `None`.
         """
-        # TODO: implement bfs (?)
-        raise NotImplementedError
+        # issue should not be be None, but something that identifies vols without issue
+        if None in [volume, issue, page]:
+            raise ValueError(
+                f'There should be no `None`! {volume=}, {issue=}, {page=}')
+        l = [self.root, volume, issue, page]
+        for i in range(1, len(l)):
+            parent = self._make_path_to_node(l[:i])
+            child = self._make_path_to_node(l[:i+1])
+            self.clb_tree.add_edge(parent, child)
+            self.clb_tree.nodes[child]['number'] = l[i]
+            logging.info(f'Adding edge to ČLB tree: `{parent}`--`{child}`')
+        return
 
 
 def load_periodical(path: str) -> Periodical:
