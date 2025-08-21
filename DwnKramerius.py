@@ -51,30 +51,7 @@ class KramScraperBase():
         String to pass to API to receive info about Kramerius installation.
 
     VER : KramVer
-        Kramerius version. So far, 5 and 7.
-
-
-    Methods
-    -------
-    _check_url()
-        Check that the API URL does not end with `/`.
-        Also check that the request for INFO returns 200.
-
-    get_response()
-        Get response from a given URL.
-        Throw an exception if the response is not ok.
-
-    _check_version()
-        Check that the version of API is correct.
-
-    dfs()
-        Perform DFS to find children.
-        Functions used to request API are defined by subclasses.
-
-    return_tree()
-        Return the downloaded tree.
-        Intended to be passed to a `Periodical` object.        
-
+        Kramerius version. So far, 5 and 7.   
     """
     INFO: str
     VER: KramVer
@@ -134,7 +111,7 @@ class KramScraperBase():
             'Accept-Language': 'en-US,en;q=0.5',
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0',
             'Content-Type': 'application/json'}
-        # resp = req.get(url, headers=headers)
+        # todo: session může zamrznout, takže zkusit odchytit nějakou tu timeout výjimku či co
         resp = self.session.get(url, headers=headers)
         if not resp.ok:
             err_msg = f'Response from {url} is not ok'
@@ -192,7 +169,7 @@ class KramScraperBase():
         children = self._find_children(parent_uuid)
 
         if len(children) == 0:
-            return  # we could also check that model == 'page'
+            return  # we could also check that model == 'page' or 'article'
 
         logging.info(
             f'Found {len(children)} children of {model} `{par_id}` ({parent_uuid})')
@@ -212,6 +189,7 @@ class KramScraperBase():
 
     def dfs2(self, parent_uuid: str, model: str, par_id: str, restrictions: list[set], depth: int) -> None:
         # quick and dirty
+        # todo: remove
         children = self._find_children(parent_uuid)
 
         if len(children) == 0:
@@ -237,6 +215,8 @@ class KramScraperBase():
         return
 
     def dfs_with_clb_tree(self, parent_uuid: str, model: str, par_id: str, clb_tree: nx.DiGraph, clb_node) -> None:
+        # todo: complete implementation
+        raise NotImplementedError
         children = self._find_children(parent_uuid)
 
         if len(children) == 0:
@@ -247,7 +227,7 @@ class KramScraperBase():
             child_uuid = child['pid']
             child_model, child_title = self._find_node_details(child)
             child_id = par_id + self.sep + child_title
-            # todo: vyřešit, když chybí issue
+            # TODO: vyřešit, když chybí issue
             if child_id in clb_succ:
 
                 self.tree.add_edge(par_id, child_id)
@@ -286,20 +266,6 @@ class KramScraperV7(KramScraperBase):
         https://github.com/ceskaexpedice/kramerius/blob/master/installation/solr-9.x/search/conf/managed-schema
         https://docs.google.com/spreadsheets/d/1DoDnSIGPqPnYbb0U2RSNLKm9eAY2FQNimJyTPeQsC2A/edit?gid=0#gid=0
 
-
-    Methods
-    -------
-    _make_struct_url()
-        Make a URL for a structure request.
-
-    _make_detail_url()
-        Make a URL for a detail request about a given UUID.
-
-    _find_children()
-        Find children of a given UUID (JSON request).
-
-    _find_node_details()
-        Return a model and a title of a UUID.
     """
     INFO = '/search/api/client/v7.0/info'
     ITEMS = '/search/api/client/v7.0/items/'
@@ -392,28 +358,8 @@ class KramScraperV5(KramScraperBase):
 
     ITEM, CHILDREN : str
         Request URLs. For more detail, see
+        https://github.com/ceskaexpedice/kramerius/wiki/ClientAPIDEV
 
-
-    Methods
-    -------
-    _make_struct_url()
-        Make a URL for a structure request.
-
-    _make_detail_url()
-        Make a URL for a detail request about a given UUID.
-
-    _find_children()
-        Find children of a given UUID (JSON request).
-
-    return_tree()
-        Return the downloaded tree.
-        Intended to be passed to a Periodical object.
-
-    _find_node_details()
-        Return a model and a title of a UUID.
-
-    _make_children_url()
-        Create URL for a children request.
     """
 
     INFO = '/search/api/v5.0/info'
@@ -422,6 +368,7 @@ class KramScraperV5(KramScraperBase):
     VER = KramVer.V5
     MODEL_TITLE_DICT = {
         # model : title
+        # TODO: podpora pro `article` (eg. https://vufind.ucl.cas.cz/Record/002973863)
         'periodicalvolume': 'volumeNumber',
         'periodicalitem': 'partNumber',
         'page': 'pagenumber'
@@ -528,32 +475,8 @@ class Periodical:
         Root ID, by default 'root'.
     link_uuid : str
         Part of URL linking to a particular UUID, by default 'uuid'.
-
-    Methods
-    -------
-    _select_scraper():
-        Select a Kramerius scraper.
-    _check_url():
-        Check if the `link_uuid` URL is correct.
-    save_tree():
-        Save only the tree to a JSON file.
-    make_url():
-        Generate a URL to a page/issue/volume.
-    find_children():
-        Perform DFS to find children.
-    save():
-        Save the object parameters to a JSON file.
-        It can be loaded later with the function `load_periodical()`
-    make_url():
-        Generate a URL to user-friendly issue/volume/page.
-    find_children():
-        Download the tree from Kramerius.
-    link():
-        Link a 773q field to a UUID.
-    _children_are_page():
-        TODO: zdokumentovat, možná je k ničemu
-    bfs():
-        Not implemented yet.
+    max_depth : int
+        Maximum depth of the downloaded tree, by default 3.
     """
 
     def __init__(self,
@@ -567,7 +490,8 @@ class Periodical:
                  id_sep='/',
                  root='root',
                  link_uuid='uuid',
-                 clb_tree=nx.DiGraph()
+                 clb_tree=nx.DiGraph(),  # todo: document
+                 max_depth=3
                  ):
         self.name = name
         self.uuid = uuid
@@ -580,6 +504,7 @@ class Periodical:
         self.root = root
         self.link_uuid = link_uuid
         self.clb_tree = clb_tree
+        self.max_depth = max_depth
 
         self._check_url()
 
@@ -689,13 +614,61 @@ class Periodical:
         """
         return self.url+'/'+self.link_uuid+'/'+uuid
 
-    def find_children(self) -> None:
+    def complete_download(self) -> None:
         """Use depth-first search to find children starting 
         from UUID of a periodical.
         """
         self._select_scraper()
         self.scraper.dfs(self.uuid, 'periodical', self.root)
         self.tree = self.scraper.return_tree()
+        self.check_tree_depth()
+
+    def check_tree_depth(self) -> None:
+        """Check that the downloaded tree is not too deep.
+
+        Raises
+        ------
+        ValueError
+            Tree is too deep
+        """
+        if len(self.tree) <= 2:
+            raise ValueError('No tree to check!')
+        MAX_DEPTH = 3  # zero-based counting
+        try:
+            self._check_tree_depth(self.root, MAX_DEPTH, 0)
+        except ValueError:
+            logging.warning('Tree is too deep!')
+        return
+
+    def _check_tree_depth(self, node: str, max_depth: int, depth: int) -> None:
+        """Use dfs to check that the downloaded tree is not too deep.
+
+        We expect at most four layers: periodical -- volume -- issue -- page/article.
+
+        Parameters
+        ----------
+        node : str
+            Node ID.
+        max_depth : int
+            Maximum tree depth.
+        depth : int
+            Current depth.
+
+        Raises
+        ------
+        ValueError
+            Tree is too deep (`depth` > `max_depth`).
+        """
+        children = list(self.tree.successors(node))
+        if depth > max_depth:
+            raise ValueError(f'Tree is too deep ({depth=} > {max_depth=})')
+
+        if len(children) == 0:
+            return
+
+        for item in children:
+            self._check_tree_depth(item, max_depth, depth+1)
+        return
 
     def _link(self, path: str) -> str | None:
         """Try making a URL to a given path.
@@ -735,6 +708,9 @@ class Periodical:
         str | None
             Link to a page or `None` if the path leads nowhere.
         """
+        # todo: asi by bylo lepší hodit záznamy, ke kterým jsem okamžitě nenašel uuid do nějakého seznamu
+        # a tenhle seznam projet nějakou fcí, která to zkusí znova nalinkovat a diagnostikovat proč první linkování nevyšlo
+        # prostě tu funkci rozsekat
         path_to_page = self._make_path_to_node(
             [self.root, volume, issue, page])
         link_to_page = self._link(path_to_page)
