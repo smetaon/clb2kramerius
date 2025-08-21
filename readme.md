@@ -1,3 +1,20 @@
+# ČLB 2 Kramerius
+Propojení záznamů v člb na data v Krameriovi.
+
+Z pole `773q` se snažíme dostat na naskenovanou stránku v nějaké digitální knihovně.
+Např. záznam [001297463](https://vufind.ucl.cas.cz/Record/001297463) má v poli `773q` hodnotu `18:3/4<73`.
+Na základě tohoto se chceme dostat na adresu v (třeba) MZK: [c3c946c0-57a0-11e5-9a33-5ef3fc9ae867](https://www.digitalniknihovna.cz/mzk/view/uuid:58c34dd0-579b-11e5-81eb-001018b5eb5c?page=uuid:c3c946c0-57a0-11e5-9a33-5ef3fc9ae867).
+
+# Jak to uděláme
+1. Máme seznam periodik v člb a jejich uuid v digitální knihovně
+1. Nemáme dostupná data z Krameria, takže je musíme sami sehnat
+    - Kramerius každé stránce / číslu / ročníku / periodiku / atd. přiřazuje uuid
+    - Cílem je sehnat toto uuid pro konkrétní stránku, na které se vyskytuje článek v záznamu v člb
+    - Využíváme krameriovské API
+    - Stáhneme si strukturu digitalizovaného dokumentu (abstraktně to reprezentujeme jako stromy)
+1. Z marcovských záznamů se pokusíme napárovat pole `773q` na staženou reprezentaci 
+1. Samozřejmě vyřešíme všechny nedokonalosti v zadávání dat a upozorníme na chyby (should be easy, right 🤔)
+
 # Problems
 ## Nekonzistentní číslování _issue_
 ### Popis
@@ -7,7 +24,6 @@ Ale může se stát, že záznam v člb neobsahuje issue (třeba `5<6`).
 To se stává, když je pouze jedno issue v celém volume.
 
 Našel jsem 56 391 záznamů, které nemají uvedené issue (tj. styl 1<100) (tj. zhruba 8.5 %) (`cat all_marc.csv | grep ':' -v | wc -l`)
-Např. 001738573.
 
 ### Stav 
 🟢
@@ -37,23 +53,41 @@ A protože je i docela nespolehlivé, tak pro větší periodika často ani nedo
 Zkouším implementovat jakousi online verzi, tj. podívám se pouze na stránky, které mají záznamy v člb a ty se pokusím stáhnout.
 Uvidíme, jak to bude fungovat, dost záleží na kvalitě a konzistenci záznamů v člb a Krameriovi.
 
+Taky by šlo projet marcovské záznamy před stahováním z Krameria.
+Pokud jsou v nich hezké záznamy (asi skutečně aby 773q bylo: `vol:issue<page` a všechny složky byly rozumné (neobsahovaly závorky, mezery atd.)), tak stáhnout z Krameria jen to nezbytně nutné. 
+Tím odpadá potřeba implementovat nějaké heuristiky ještě před stahováním.
+Pokud bychom našli nějaké nestandardní 773q, tak bychom stáhli všechno.
+
 Jiná možnost by byla implementovat podporu částečného stahování.
 
+
+## Špatné údaje v 773q
+Zkusit zparsovat `773t` a porovnat to s `773q`?
+Např. v [000994686](https://vufind.ucl.cas.cz/Record/000994686) je `773q` špatně, ale `t` vypadád dobře.
+
 ## Slánský obzor
-Řekl bych, že je špatně vedený v Krameriovi. 
-V člb sice sedí název a issn, ale roky vydání jsou úplně jiné. 
+Řekl bych, že je špatně vedený v Krameriovi.
+V člb sice sedí název a issn, ale roky vydání jsou úplně jiné.
 Periodikum v Krameriovi je z 1. poloviny 20. století a záznamy v člb jsou z 21. století.
 Viz třeba [001567998](https://vufind.ucl.cas.cz/Record/001567998#details), [kramerius](https://kramerius5.nkp.cz/periodical/uuid:597d4560-66fb-11de-ad0b-000d606f5dc6).
+### Stav
+🟢
+Od roku 1899 do 1950 vycházel starý Obzor, ten je digitalizovaný (viz [zde](https://aleph.nkp.cz/F/B7K38VJXJXBXIRI7PTE6JPB8C4CU8VP1QGICNVS7XS6DE2KR8G-28094?func=full-set-set&set_number=084828&set_entry=000002&format=999)).
+V člb ale máme spíš novější vydání (od roku 1994).
+Takže správná odpověď o
 
 
 # Roadmap
 - Napárování periodik z člb na ta správná v digitálních knihovnách.
     - Stačí pro periodikum v člb najít uuid ve správné knihovně
     - Můžou být problémy s issn a názvy, asi to bude chtít nějakou ruční kontrolu
+    - Rok vydání v poli `008` je na pozici `[7:11]`
     - [fuzzysearch](https://pypi.org/project/fuzzysearch/)
 - Zrychlení stahování dat Krameria
     - Bylo by fajn zkoušet najít pouze stránky, které jsou v záznamech v člb, místo stahování celého Krameria
-    - Jejich API je nespolehlivé a občas se prostě odmlčí 
+        - To mi přijde jako takové celkově míň spolehlivé řešení, daleko robustnější je prostě mít všechno
+    - Asi lepší nápad je implementovat podporu částečného stahování
+    - ~~Jejich API je nespolehlivé a občas se prostě odmlčí~~ **docela dobře řeší použití** `requests.Session()`
 - Jak kontrolovat výsledné odkazy? Může se stát
     1) Odkaz vede na správnou stránku a správný článek
     1) Odkaz vede na správnou stránku, ale špatný článek (záznam v člb je špatně)
@@ -62,10 +96,20 @@ Viz třeba [001567998](https://vufind.ucl.cas.cz/Record/001567998#details), [kra
         - V člb je zapsaná neexistující cesta
         - Stránka není vůbec digitalizovaná 
         - *Dokážeme nějak poznat, která z těchto dvou chyb nastala?*
+    - Zkusit implementovat nějaké heuristiky, které by mohly napovědět, co se asi stalo
+    - Dát dohromady záznamy, ke kterým jsme nenašli cestu v Krameriovi a ty nějak projet a u každého říct, k čemu asi došlo
+        1. Není vůbec digitalizované
+        1. `773q` je špatně zadané
+        1. `773q` je nějak nestandardní
+        1. ... další ...
+    - Kromě toho kontrolovat i úspěšně přiřazené záznamy (false positives -- správná forma neznamená správný obsah)
+    - Zkontrolovat mnou vytvořené linky s již existujícími
 - Pátá verze Krameria
     - Je oproti sedmé poněkud nekonzistentní
 - Další knihovny
     - Zatím především MZK (V7) a NKP (V5)
+    - Rozumně vypadá i knihovna akademie věd
+    - Novější periodika nesledují stránku, ale `article` - takže vyřešit, jak hledat články a ne stránky (např. [002973863](https://vufind.ucl.cas.cz/Record/002973863))
 
 # Etc
 - issue = číslo
