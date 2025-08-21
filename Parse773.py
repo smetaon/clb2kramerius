@@ -35,15 +35,9 @@ def standardize_loc(loc: str) -> str:
 
 
 def parse_location(loc: str) -> tuple[str | None, str | None, str | None]:
-    """Parse subfield 773$q.
+    """Parse subfield 773q.
 
     Format is volume:issue<page.
-
-    BUT
-    Issue does not have to be present (eg. 35<66 = vol 35 page 66).
-    All three numbers can be in parentheses (eg. [1]:[5]<[112]).
-    Issues can have more than one number (eg. 1:5/6<45 or 1:01/02<12) (but numbers appear to be consitently separated with `/`).
-    Pages can be roman numerals (eg. 25:187<xii).
 
     Parameters
     ----------
@@ -138,3 +132,34 @@ def normalize(vol: str | None, issue: str | None, page: str | None) -> tuple[str
     normalized = replace_separators(*normalized)
 
     return normalized
+
+
+def check_format(loc: str) -> bool:
+    """Check that 773q field is standard.
+
+    That is, it is in the format `vol:issue<page`,
+    there are no empty strings,
+
+
+    Parameters
+    ----------
+    loc : str
+        Raw 773q.
+
+    Returns
+    -------
+    bool
+        `True` if `loc` is not problematic,
+        `False` otherwise.
+    """
+    parsed = parse_location(loc)
+    # problematic symbols in 773q we want to pay special attention to
+    # we can deal with `/`, `[]`
+    PROBLEMS = r'[\ ]'
+    for item in parsed:
+        if item is None:
+            return False
+        else:
+            if re.search(PROBLEMS, item) is not None:
+                return False
+    return True
