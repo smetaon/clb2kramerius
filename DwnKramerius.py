@@ -476,7 +476,7 @@ class Periodical:
     link_uuid : str
         Part of URL linking to a particular UUID, by default 'uuid'.
     max_depth : int
-        Maximum depth of the downloaded tree, by default 3.
+        Maximum depth of the downloaded tree (zero-based counting), by default 3.
     """
 
     def __init__(self,
@@ -626,6 +626,8 @@ class Periodical:
     def check_tree_depth(self) -> None:
         """Check that the downloaded tree is not too deep.
 
+        We expect at most four layers: periodical -- volume -- issue -- page/article.
+
         Raises
         ------
         ValueError
@@ -633,9 +635,8 @@ class Periodical:
         """
         if len(self.tree) <= 2:
             raise ValueError('No tree to check!')
-        MAX_DEPTH = 3  # zero-based counting
         try:
-            self._check_tree_depth(self.root, MAX_DEPTH, 0)
+            self._check_tree_depth(self.root, self.max_depth, 0)
         except ValueError:
             logging.warning('Tree is too deep!')
         return
@@ -643,7 +644,6 @@ class Periodical:
     def _check_tree_depth(self, node: str, max_depth: int, depth: int) -> None:
         """Use dfs to check that the downloaded tree is not too deep.
 
-        We expect at most four layers: periodical -- volume -- issue -- page/article.
 
         Parameters
         ----------
