@@ -51,8 +51,8 @@ def main_single():
     logging.basicConfig(level=logging.INFO)
 
     per = Periodical(
-        name='narodopis_revue',
-        uuid='uuid:6d522af0-fd50-11e4-92a1-5ef3fc9bb22f',
+        name='Estetika',
+        uuid='uuid:547c2040-16a3-11e6-adec-001018b5eb5c',
         library='mzk',
         kramerius_ver='7',
         url='https://www.digitalniknihovna.cz/mzk',
@@ -60,9 +60,9 @@ def main_single():
     )
 
     per.complete_download()
-    per.save(f'data/{per.name}_session.json')
+    per.save(f'data/{per.name}_pokus.json')
 
 
 if __name__ == '__main__':
-    main_mass()
-    # main_single()
+    # main_mass()
+    main_single()
