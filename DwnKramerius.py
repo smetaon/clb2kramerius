@@ -55,6 +55,7 @@ class KramScraperBase():
     """
     INFO: str
     VER: KramVer
+    # TODO: progress bar?
 
     def __init__(self, url: str, sep='/') -> None:
         self.url = url
@@ -344,7 +345,13 @@ class KramScraperV7(KramScraperBase):
         resp = self.get_response(detail_url)
         # these JSON response parameters could vary from library to library
         model = resp.json()['response']['docs'][0]['model']
-        title = resp.json()['response']['docs'][0]['title.search']
+        try:
+            title = resp.json()['response']['docs'][0]['title.search']
+        except KeyError:
+            default_tit_search = 'no_title_search'
+            logging.warning(
+                f'No `title.search` parameter found, using `{default_tit_search}` ({node["pid"]})')
+            title = default_tit_search
         return (model, title)
 
 
@@ -531,7 +538,7 @@ class Periodical:
         Raises
         ------
         ValueError
-            URL should end with `/`
+            URL should not end with `/`
         """
         if self.url[-1] == '/':
             raise ValueError('URL should not end with `/`.')
