@@ -74,7 +74,14 @@ Viz třeba [001567998](https://vufind.ucl.cas.cz/Record/001567998#details), [kra
 🟢
 Od roku 1899 do 1950 vycházel starý Obzor, ten je digitalizovaný (viz [zde](https://aleph.nkp.cz/F/B7K38VJXJXBXIRI7PTE6JPB8C4CU8VP1QGICNVS7XS6DE2KR8G-28094?func=full-set-set&set_number=084828&set_entry=000002&format=999)).
 V člb ale máme spíš novější vydání (od roku 1994).
-Takže správná odpověď o
+Takže správná odpověď je 
+
+## Progress bar
+❌
+Asi nemá smysl implementovat.
+Musel bych vědět, kolik uzlů je z Krameria potřeba stáhnout, takže se musím na všechny zeptat.
+To je ale stejně práce jako stahování z Krameria.
+Takže sesbírání podkladů pro progress bar zabere stejně času jako stažení samotné.
 
 
 # Roadmap
