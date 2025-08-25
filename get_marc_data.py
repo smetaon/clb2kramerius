@@ -1,6 +1,7 @@
 from pymarc import MARCReader
 from pandas import DataFrame
 import re
+from tqdm import tqdm
 """
 Save a periodical from marc to a smaller csv
 """
@@ -55,17 +56,17 @@ def rec_has_773q(record_id, per, loc, status) -> bool:
 if __name__ == "__main__":
     data = []
     reader = MARCReader(open('/home/clb/data/ucla_all_v4.mrc', 'rb'))
+    total_records = 2_359_694  # for ucla_all_v4.mrc
 
-    for i, record in enumerate(reader):
-        rec_id = get_record_id(record)
-        lst_856 = get_856(record)
-        lst_773 = get_773(record)
-        rec = create_record(rec_id, lst_773, lst_856)
-        if rec_has_773q(*rec):
-            data.append(rec)
-        if i % 1_000 == 0:
-            print(i)
-
+    with tqdm(total=total_records) as pbar:
+        for record in tqdm(reader):
+            rec_id = get_record_id(record)
+            lst_856 = get_856(record)
+            lst_773 = get_773(record)
+            rec = create_record(rec_id, lst_773, lst_856)
+            if rec_has_773q(*rec):
+                data.append(rec)
+            pbar.update(1)
     cols = ['id', 'periodical', 'location', 'is_digitized']
     df = DataFrame(data, columns=cols)
     with open('data/marc_data/all_marc_v2.csv', 'w') as f:
