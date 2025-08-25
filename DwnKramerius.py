@@ -31,7 +31,7 @@ class KramVer(Enum):
     V5 = '5'
 
 
-class KramScraperBase():
+class KramAPIBase():
     """Base class for a scraper which uses Kramerius API.
 
 
@@ -252,7 +252,7 @@ class KramScraperBase():
         return self.tree
 
 
-class KramScraperV7(KramScraperBase):
+class KramAPIv7(KramAPIBase):
     """Scraper class for Kramerius version 7.
 
     Attributes
@@ -355,7 +355,7 @@ class KramScraperV7(KramScraperBase):
         return (model, title)
 
 
-class KramScraperV5(KramScraperBase):
+class KramAPIv5(KramAPIBase):
     """Scraper class for Kramerius version 5.
 
     Attributes
@@ -526,9 +526,9 @@ class Periodical:
             Only V7 and V5 is supported
         """
         if self.kramerius_ver == KramVer.V7.value:
-            self.scraper = KramScraperV7(self.api_url)
+            self.scraper = KramAPIv7(self.api_url)
         elif self.kramerius_ver == KramVer.V5.value:
-            self.scraper = KramScraperV5(self.api_url)
+            self.scraper = KramAPIv5(self.api_url)
         else:
             raise Exception('Only V7 and V5 is supported')
 
