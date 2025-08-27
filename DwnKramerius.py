@@ -33,7 +33,7 @@ class KramVer(Enum):
 
 
 class KramAPIBase():
-    """Base class for a scraper which uses Kramerius API.
+    """Base class for Kramerius API.
 
 
     Attributes
@@ -147,7 +147,7 @@ class KramAPIBase():
         ver = resp.json()['version']
         if ver[0] == self.VER.value:
             logging.info(
-                f'Scraper version ({self.VER}) matches Kramerius API version ({ver})')
+                f'Set API version ({self.VER}) matches Kramerius API version ({ver})')
         else:
             msg = f'Expected version {self.VER.value}.x.x, got {ver}'
             logging.error(msg)
@@ -271,7 +271,7 @@ class KramAPIBase():
 
 
 class KramAPIv7(KramAPIBase):
-    """Scraper class for Kramerius version 7.
+    """Class for Kramerius API version 7.
 
     Attributes
     ----------
@@ -374,7 +374,7 @@ class KramAPIv7(KramAPIBase):
 
 
 class KramAPIv5(KramAPIBase):
-    """Scraper class for Kramerius version 5.
+    """Class for Kramerius API version 5.
 
     Attributes
     ----------
@@ -537,7 +537,7 @@ class Periodical:
         logging.info(f"Loaded periodical {self}")
 
     def _select_KramAPI(self) -> None:
-        """Select a Kramerius scraper based on version.
+        """Select a Kramerius API version.
 
         Raises
         ------
@@ -545,9 +545,9 @@ class Periodical:
             Only V7 and V5 is supported
         """
         if self.kramerius_ver == KramVer.V7.value:
-            self.scraper = KramAPIv7(self.api_url)
+            self.api = KramAPIv7(self.api_url)
         elif self.kramerius_ver == KramVer.V5.value:
-            self.scraper = KramAPIv5(self.api_url)
+            self.api = KramAPIv5(self.api_url)
         else:
             raise Exception('Only V7 and V5 is supported')
 
@@ -646,12 +646,12 @@ class Periodical:
         """
         self._select_KramAPI()
         if prog_bar:
-            self.scraper.count_vols_to_dwn(self.uuid)
-            self.scraper.create_progress_bar()
+            self.api.count_vols_to_dwn(self.uuid)
+            self.api.create_progress_bar()
 
-        self.scraper.dfs(self.uuid, 'periodical', self.root, prog_bar)
+        self.api.dfs(self.uuid, 'periodical', self.root, prog_bar)
 
-        self.tree = self.scraper.return_tree()
+        self.tree = self.api.return_tree()
         self.check_tree_depth()
 
     def check_tree_depth(self) -> None:
