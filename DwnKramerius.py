@@ -5,7 +5,7 @@ from enum import Enum
 import requests as req
 import Parse773
 import csv
-import tqdm
+from tqdm import tqdm
 
 
 class Library(Enum):
@@ -53,9 +53,17 @@ class KramAPIBase():
 
     VER : KramVer
         Kramerius version. So far, 5 and 7.   
+
+    vols_to_dw : int
+        Number of volumes to download.
+        To be used in a simple progress bar.
+
+    progress_bar : tdqm()
+        Progress bar object.
     """
     INFO: str
     VER: KramVer
+    vols_to_dwn: int = 0
 
     def __init__(self, url: str, sep='/') -> None:
         self.url = url
@@ -151,7 +159,7 @@ class KramAPIBase():
     def _find_node_details(self, node):
         raise NotImplementedError("Subclass needs to define this.")
 
-    def dfs(self, parent_uuid: str, model: str, par_id: str) -> None:
+    def dfs(self, parent_uuid: str, model: str, par_id: str, prog_bar: bool) -> None:
         """Perform DFS to find children.
 
         Kramerius versions differ in requests and responses to 
@@ -191,7 +199,10 @@ class KramAPIBase():
 
             logging.info(
                 f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
-            self.dfs(child_uuid, child_model, child_id)
+
+            if prog_bar and model == 'periodicalvolume':
+                self.progress_bar.update(1)
+            self.dfs(child_uuid, child_model, child_id, prog_bar)
         return
 
     def dfs_with_clb_tree(self, parent_uuid: str, model: str, par_id: str, clb_tree: nx.DiGraph, clb_node) -> None:
@@ -229,6 +240,34 @@ class KramAPIBase():
             The downloaded tree.
         """
         return self.tree
+
+    def count_vols_to_dwn(self, uuid: str) -> None:
+        """Number of volumes (= children of periodical/root) to be downloaded.
+
+        Parameters
+        ----------
+        uuid : str
+            UUID of a unit, usually a periodical.
+        """
+        vols_to_dwn = len(self._find_children(uuid))
+        logging.info(f'Found {vols_to_dwn} volumes to download')
+        self.vols_to_dwn = vols_to_dwn
+
+    def create_progress_bar(self) -> None:
+        """Create a `tqdm` progress bar.
+
+        Raises
+        ------
+        ValueError
+            There is zero volumes to download.
+        """
+        if self.vols_to_dwn == 0:
+            raise ValueError(
+                'Zero volumes to download. Call `count_vols_to_dwn` first.')
+
+        self.progress_bar = tqdm(desc='Volumes to download',
+                                 total=self.vols_to_dwn,
+                                 bar_format="{l_bar}{bar:20} [{n_fmt}/{total_fmt}]")
 
 
 class KramAPIv7(KramAPIBase):
@@ -497,7 +536,7 @@ class Periodical:
 
         logging.info(f"Loaded periodical {self}")
 
-    def _select_scraper(self) -> None:
+    def _select_KramAPI(self) -> None:
         """Select a Kramerius scraper based on version.
 
         Raises
@@ -601,12 +640,17 @@ class Periodical:
         """
         return self.url+'/'+self.link_uuid+'/'+uuid
 
-    def complete_download(self) -> None:
+    def complete_download(self, prog_bar: bool) -> None:
         """Use depth-first search to find children starting 
         from UUID of a periodical.
         """
-        self._select_scraper()
-        self.scraper.dfs(self.uuid, 'periodical', self.root)
+        self._select_KramAPI()
+        if prog_bar:
+            self.scraper.count_vols_to_dwn(self.uuid)
+            self.scraper.create_progress_bar()
+
+        self.scraper.dfs(self.uuid, 'periodical', self.root, prog_bar)
+
         self.tree = self.scraper.return_tree()
         self.check_tree_depth()
 

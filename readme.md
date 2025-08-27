@@ -77,8 +77,10 @@ V člb ale máme spíš novější vydání (od roku 1994).
 Takže správná odpověď je 
 
 ## Progress bar
-❌
-Asi nemá smysl implementovat.
+🟢
+Jednoduchý progress bar sleduje stažené volumes.
+
+Detailnější asi nemá smysl implementovat.
 Musel bych vědět, kolik uzlů je z Krameria potřeba stáhnout, takže se musím na všechny zeptat.
 To je ale stejně práce jako stahování z Krameria.
 Takže sesbírání podkladů pro progress bar zabere stejně času jako stažení samotné.
