@@ -200,9 +200,9 @@ class KramAPIBase():
             logging.info(
                 f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
 
-            if prog_bar and model == 'periodicalvolume':
-                self.progress_bar.update(1)
             self.dfs(child_uuid, child_model, child_id, prog_bar)
+            if prog_bar and child_model == 'periodicalvolume':
+                self.progress_bar.update(1)
         return
 
     def dfs_with_clb_tree(self, parent_uuid: str, model: str, par_id: str, clb_tree: nx.DiGraph, clb_node) -> None:
