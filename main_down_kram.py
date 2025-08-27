@@ -12,10 +12,12 @@ def main_mass():
     log_lvl = logging.INFO
     root_logger.setLevel(log_lvl)
 
-    console_log = logging.StreamHandler()
-    console_log.setFormatter(log_formatter)
-    console_log.setLevel(log_lvl)
-    root_logger.addHandler(console_log)
+    prog_bar = True
+    if not prog_bar:
+        console_log = logging.StreamHandler()
+        console_log.setFormatter(log_formatter)
+        console_log.setLevel(log_lvl)
+        root_logger.addHandler(console_log)
 
     PATH = 'data/mzk_medium/mzk_medium.csv'
     with open(PATH) as f:
@@ -39,30 +41,34 @@ def main_mass():
                 url='https://www.digitalniknihovna.cz/mzk',
                 api_url='https://api.kramerius.mzk.cz'
             )
-            per._select_scraper()
-            per.complete_download()
+
+            per.complete_download(prog_bar)
             per.save(f'data/mzk_medium/{log_title}.json')
 
-            time.sleep(60)
             root_logger.removeHandler(text_log)
 
 
 def main_single():
-    logging.basicConfig(level=logging.INFO)
+    prog_bar = True
+    if not prog_bar:
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s:%(name)s:%(levelname)s:%(message)s')
 
     per = Periodical(
-        name='Estetika',
-        uuid='uuid:547c2040-16a3-11e6-adec-001018b5eb5c',
+        name='frenštát',
+        uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
         library='mzk',
         kramerius_ver='7',
         url='https://www.digitalniknihovna.cz/mzk',
         api_url='https://api.kramerius.mzk.cz'
     )
 
-    per.complete_download()
-    per.save(f'data/{per.name}_pokus.json')
+    per.complete_download(prog_bar)
 
 
 if __name__ == '__main__':
-    # main_mass()
-    main_single()
+    main_mass()
+    # start = time.time()
+    # main_single()
+    # print(time.time()-start)
