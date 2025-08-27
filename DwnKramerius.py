@@ -5,6 +5,7 @@ from enum import Enum
 import requests as req
 import Parse773
 import csv
+import tqdm
 
 
 class Library(Enum):
@@ -141,7 +142,7 @@ class KramAPIBase():
                 f'Scraper version ({self.VER}) matches Kramerius API version ({ver})')
         else:
             msg = f'Expected version {self.VER.value}.x.x, got {ver}'
-            logging.warning(msg)
+            logging.error(msg)
             raise ValueError(msg)
 
     def _find_children(self, uuid: str):
@@ -191,33 +192,6 @@ class KramAPIBase():
             logging.info(
                 f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
             self.dfs(child_uuid, child_model, child_id)
-        return
-
-    def dfs2(self, parent_uuid: str, model: str, par_id: str, restrictions: list[set], depth: int) -> None:
-        # quick and dirty
-        # todo: remove
-        children = self._find_children(parent_uuid)
-
-        if len(children) == 0:
-            return  # we could also check that model == 'page'
-
-        logging.info(
-            f'Found {len(children)} children of {model} `{par_id}` ({parent_uuid})')
-
-        for child in children:
-            child_uuid = child['pid']
-            child_model, child_title = self._find_node_details(child)
-            if child_title in restrictions[depth]:
-                child_id = par_id + self.sep + child_title
-
-                self.tree.add_edge(par_id, child_id)
-                self.tree.nodes[child_id]['model'] = child_model
-                self.tree.nodes[child_id]['uuid'] = child_uuid
-
-                logging.info(
-                    f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
-                self.dfs2(child_uuid, child_model,
-                          child_id, restrictions, depth+1)
         return
 
     def dfs_with_clb_tree(self, parent_uuid: str, model: str, par_id: str, clb_tree: nx.DiGraph, clb_node) -> None:
