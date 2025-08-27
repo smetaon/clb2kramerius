@@ -55,7 +55,6 @@ class KramAPIBase():
     """
     INFO: str
     VER: KramVer
-    # TODO: progress bar?
 
     def __init__(self, url: str, sep='/') -> None:
         self.url = url
@@ -102,8 +101,11 @@ class KramAPIBase():
 
         Raises
         ------
-        Exception
-            Response is not ok.
+        req.exceptions.ConnectionError
+            Response raises ConnectionError.
+
+        req.exceptions.Timeout
+            Connection times out.
         """
         logging.debug(f'Trying url {url}')
         headers = {
@@ -112,12 +114,15 @@ class KramAPIBase():
             'Accept-Language': 'en-US,en;q=0.5',
             'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0',
             'Content-Type': 'application/json'}
-        # todo: session může zamrznout, takže zkusit odchytit nějakou tu timeout výjimku či co
-        resp = self.session.get(url, headers=headers)
-        if not resp.ok:
-            err_msg = f'Response from {url} is not ok'
-            logging.warning(err_msg)
-            raise Exception(err_msg)
+        try:
+            resp = self.session.get(url, headers=headers, timeout=40)
+        except req.exceptions.ConnectionError as err:
+            logging.error(err)
+            raise SystemExit(err)
+        except req.exceptions.Timeout as err:
+            logging.error(err)
+            raise SystemExit(err)
+
         return resp
 
     def _check_version(self) -> None:
@@ -485,6 +490,7 @@ class Periodical:
     max_depth : int
         Maximum depth of the downloaded tree (zero-based counting), by default 3.
     """
+    # TODO: uložit ISSN, pokud je dostupné (z Krameria snad ano)
 
     def __init__(self,
                  name: str,
