@@ -19,10 +19,20 @@ def main_mass():
         console_log.setLevel(log_lvl)
         root_logger.addHandler(console_log)
 
-    PATH = 'data/mzk_medium/mzk_medium.csv'
+    PATH = 'data/mzk_medium/mzk_medium_dwn.csv'
     with open(PATH) as f:
-        reader = csv.DictReader(f, delimiter=';')
-        for row in reader:
+        content = f.read()
+
+    processed = []
+    unprocessed = content.splitlines()
+    unprocessed.pop(0)  # header
+
+    reader = csv.DictReader(content.splitlines(), delimiter=';')
+    csv_header = reader.fieldnames
+
+    reader = csv.DictReader(content.splitlines(), delimiter=';')
+    for row in reader:
+        if row['downloaded'] == 'F':
             now = datetime.datetime.now()
             timestamp = now.strftime(r"%m%d%H%M%S")
             log_title = row['uuid']
@@ -45,7 +55,21 @@ def main_mass():
             per.complete_download(prog_bar)
             per.save(f'data/mzk_medium/{log_title}.json')
 
+            row['downloaded'] = 'T'
+            processed.append(row)
+            unprocessed.pop(0)
+
             root_logger.removeHandler(text_log)
+
+            # write to the csv file we read from
+            # but change `downloaded` for newly downloaded periodicals
+            with open(PATH, 'w') as out:
+                writer = csv.DictWriter(
+                    out, csv_header, delimiter=';')  # type: ignore
+                writer.writeheader()
+                writer.writerows(processed)  # write processed rows
+                for line in unprocessed:  # write unprocessed rows
+                    print(line, file=out)
 
 
 def main_single():
