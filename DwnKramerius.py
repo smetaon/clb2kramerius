@@ -253,21 +253,21 @@ class KramAPIBase():
         logging.info(f'Found {vols_to_dwn} volumes to download')
         self.vols_to_dwn = vols_to_dwn
 
-    def create_progress_bar(self) -> None:
+    def create_progress_bar(self, desc: str) -> None:
         """Create a `tqdm` progress bar.
 
         Raises
         ------
         ValueError
-            There is zero volumes to download.
+            There are no volumes to download.
         """
         if self.vols_to_dwn == 0:
             raise ValueError(
                 'Zero volumes to download. Call `count_vols_to_dwn` first.')
 
-        self.progress_bar = tqdm(desc='Volumes to download',
+        self.progress_bar = tqdm(desc=desc,
                                  total=self.vols_to_dwn,
-                                 bar_format="{l_bar}{bar:20} [{n_fmt}/{total_fmt}]")
+                                 bar_format="{l_bar}{bar:20} [{n_fmt}/{total_fmt} volumes]")
 
 
 class KramAPIv7(KramAPIBase):
@@ -647,7 +647,7 @@ class Periodical:
         self._select_KramAPI()
         if prog_bar:
             self.api.count_vols_to_dwn(self.uuid)
-            self.api.create_progress_bar()
+            self.api.create_progress_bar(self.name)
 
         self.api.dfs(self.uuid, 'periodical', self.root, prog_bar)
 
