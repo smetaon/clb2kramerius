@@ -16,20 +16,6 @@ Na základě tohoto se chceme dostat na adresu v (třeba) MZK: [c3c946c0-57a0-11
 1. Samozřejmě vyřešíme všechny nedokonalosti v zadávání dat a upozorníme na chyby (should be easy, right 🤔)
 
 # Problems
-## Nekonzistentní číslování _issue_
-### Popis
-Když je více čísel v ročníku, vše je ok.
-
-Ale může se stát, že záznam v člb neobsahuje issue (třeba `5<6`). 
-To se stává, když je pouze jedno issue v celém volume.
-
-Našel jsem 56 391 záznamů, které nemají uvedené issue (tj. styl 1<100) (tj. zhruba 8.5 %) (`cat all_marc.csv | grep ':' -v | wc -l`)
-
-### Stav 
-🟢
-Vyřešené tak, že pokud nenajdu stránku a volume má pouze jedno dítě (v datech z Krameria), tak zkusím číslo tohoto dítěte doplnit do cesty a najít ji znova.
-
-
 ## Nekonzistentní číslování _volume_
 Např. [001532746](https://vufind.ucl.cas.cz/Record/001532746) má 773q `2:4<156`, ale v Krameriovi je to volume vedené jako `2 (29)`
 
@@ -85,6 +71,15 @@ Musel bych vědět, kolik uzlů je z Krameria potřeba stáhnout, takže se mus�
 To je ale stejně práce jako stahování z Krameria.
 Takže sesbírání podkladů pro progress bar zabere stejně času jako stažení samotné.
 
+## Nekonzistentní číslování _issue_
+Když je více čísel v ročníku, vše je ok.
+
+Ale může se stát, že záznam v člb neobsahuje issue (třeba `5<6`). 
+To se stává, když je pouze jedno issue v celém volume.
+
+### Stav 
+🟢
+Vyřešené tak, že pokud nenajdu stránku a volume má pouze jedno dítě (v datech z Krameria), tak zkusím číslo tohoto dítěte doplnit do cesty a najít ji znova.
 
 # Roadmap
 - Napárování periodik z člb na ta správná v digitálních knihovnách.
