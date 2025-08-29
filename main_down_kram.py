@@ -1,8 +1,8 @@
 from DwnKramerius import Periodical, load_periodical
 import logging
 import datetime
-import csv
 import time
+import pandas as pd
 
 
 def main_mass():
@@ -19,23 +19,16 @@ def main_mass():
         console_log.setLevel(log_lvl)
         root_logger.addHandler(console_log)
 
-    PATH = 'data/mzk_medium/mzk_medium_dwn.csv'
+    PATH = 'data/mzk_medium/mzk_medium_dwn_copy.csv'
     with open(PATH) as f:
-        content = f.read()
+        csv = pd.read_csv(f, delimiter=';', keep_default_na=False)
+    csv_copy = csv.copy()
 
-    processed = []
-    unprocessed = content.splitlines()
-    unprocessed.pop(0)  # header
-
-    reader = csv.DictReader(content.splitlines(), delimiter=';')
-    csv_header = reader.fieldnames
-
-    reader = csv.DictReader(content.splitlines(), delimiter=';')
-    for row in reader:
-        if row['downloaded'] == 'F':
+    for row in csv.itertuples():
+        if row.downloaded == 'F':
             now = datetime.datetime.now()
             timestamp = now.strftime(r"%m%d%H%M%S")
-            log_title = row['uuid']
+            log_title = row.uuid
             log_path = f'data/mzk_medium/logs/{log_title}_{timestamp}.log'
 
             text_log = logging.FileHandler(log_path, mode='w')
@@ -44,8 +37,8 @@ def main_mass():
             root_logger.addHandler(text_log)
 
             per = Periodical(
-                name=row['title'],
-                uuid=row['uuid'],
+                name=row.title,  # type: ignore
+                uuid=row.uuid,  # type: ignore
                 library='mzk',
                 kramerius_ver='7',
                 url='https://www.digitalniknihovna.cz/mzk',
@@ -55,21 +48,12 @@ def main_mass():
             per.complete_download(prog_bar)
             per.save(f'data/mzk_medium/{log_title}.json')
 
-            row['downloaded'] = 'T'
-            processed.append(row)
-            unprocessed.pop(0)
-
             root_logger.removeHandler(text_log)
-
-            # write to the csv file we read from
-            # but change `downloaded` for newly downloaded periodicals
+            csv_copy.at[row.Index, 'downloaded'] = 'T'
             with open(PATH, 'w') as out:
-                writer = csv.DictWriter(
-                    out, csv_header, delimiter=';')  # type: ignore
-                writer.writeheader()
-                writer.writerows(processed)  # write processed rows
-                for line in unprocessed:  # write unprocessed rows
-                    print(line, file=out)
+                csv_copy.to_csv(out, sep=';', index=False)
+        else:
+            print(f'Skipping {row.title}')
 
 
 def main_single():
