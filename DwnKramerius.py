@@ -3,6 +3,7 @@ import json
 import logging
 from enum import Enum
 import requests as req
+from requests.adapters import HTTPAdapter, Retry
 import Parse773
 import csv
 from tqdm import tqdm
@@ -71,6 +72,11 @@ class KramAPIBase():
         self.tree = nx.DiGraph()
         self._check_url()
         self.session = req.Session()
+        # https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status#server_error_responses
+        retries = Retry(total=5, backoff_factor=1,
+                        status_forcelist=[500, 502, 503, 504])
+        # https://stackoverflow.com/questions/23267409/how-to-implement-retry-mechanism-into-python-requests-library
+        self.session.mount('https://', HTTPAdapter(max_retries=retries))
 
     def _check_url(self):
         """Check that API URL is correct and functional.
@@ -125,6 +131,11 @@ class KramAPIBase():
             'Content-Type': 'application/json'}
         try:
             resp = self.session.get(url, headers=headers, timeout=40)
+            resp.raise_for_status()
+        # todo: místo SystemExit nějaká jiná exception
+        except req.HTTPError as err:
+            logging.error(err)
+            raise SystemExit(err)
         except req.exceptions.ConnectionError as err:
             logging.error(err)
             raise SystemExit(err)
