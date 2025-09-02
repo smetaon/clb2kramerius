@@ -304,35 +304,16 @@ class KramAPIv7(KramAPIBase):
         https://docs.google.com/spreadsheets/d/1DoDnSIGPqPnYbb0U2RSNLKm9eAY2FQNimJyTPeQsC2A/edit?gid=0#gid=0
 
     """
-    INFO = '/search/api/client/v7.0/info'
-    ITEMS = '/search/api/client/v7.0/items/'
-    STRUCT = '/info/structure'
-    DETAILS = '/search/api/client/v7.0/search?fl=title.search,model&q=pid:'
-
     CHILDREN = '/search/api/client/v7.0/search?fl=pid,model,title.search&q=own_parent.pid:'
-
     VER = KramVer.V7
 
     def __init__(self, url: str, sep='/') -> None:
         super().__init__(url, sep)
 
-    def _make_struct_url(self, uuid: str) -> str:
-        """Generate URL for a structure request.
+    def _make_children_url(self, uuid: str) -> str:
+        """Create URL for a request for children.
 
-        Parameters
-        ----------
-        uuid : str
-            UUID
-
-        Returns
-        -------
-        str
-            Link to a structure URL.
-        """
-        return self.url+self.ITEMS+uuid+self.STRUCT
-
-    def _make_detail_url(self, uuid: str) -> str:
-        """Make a URL for a detail request about a given UUID.
+        The maximal number of returned children is 4 000 (default by Kramerius).
 
         Parameters
         ----------
@@ -342,18 +323,15 @@ class KramAPIv7(KramAPIBase):
         Returns
         -------
         str
-            Link to a request for UUID detail.
+            Link to a children request.
         """
-        # quotes have to a part of the API request
-        return self.url+self.DETAILS+f'"{uuid}"'
-
-    def _make_children_url(self, uuid: str) -> str:
-        # todo: document
         # quotes have to a part of the URL
         return self.url+self.CHILDREN+f'"{uuid}"&rows=4000&sort=rels_ext_index.sort asc'
 
     def _find_children(self, uuid: str) -> list[dict[str, str]]:
         """Find children of a given UUID (JSON request).
+
+        The maximal number of returned children is 4 000 (default by Kramerius).
 
         Parameters
         ----------
