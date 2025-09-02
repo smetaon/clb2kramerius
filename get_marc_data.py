@@ -57,10 +57,11 @@ def create_record(record_id, list_773, list_856, pub_year, rec_create_year) -> d
     d = dict()
     d['id'] = record_id
     if len(list_773) > 0:
-        d['periodical'] = list_773[0][0]
+        d['periodical'] = list_773[0][0].lower().strip()
         d['location'] = list_773[0][1]
+        d['issn'] = list_773[0][2]
     else:
-        d['periodical'], d['location'] = None, None
+        d['periodical'], d['location'], d['issn'] = None, None, None
 
     if len(list_856) > 0:
         d['digi'] = list_856[0][1]
@@ -78,13 +79,17 @@ def rec_has_773q(loc) -> bool:
     return loc is not None and len(loc) > 0
 
 
+def is_serial(record) -> bool:
+    return record.leader[7] == 'b'
+
+
 if __name__ == "__main__":
     data = []
     reader = MARCReader(open('/home/clb/data/ucla_all_v4.mrc', 'rb'))
     total_records = 2_359_694  # for ucla_all_v4.mrc
 
     with tqdm(total=total_records, disable=False) as pbar:
-        for i, record in enumerate(reader):
+        for record in reader:
             rec_id = get_record_id(record)
             lst_856 = get_856(record)
             lst_773 = get_773(record)
@@ -94,11 +99,9 @@ if __name__ == "__main__":
             rec = create_record(rec_id, lst_773, lst_856,
                                 publish_year, rec_create_year)
 
-            if rec_has_773q(rec['location']):
+            if is_serial(record) and rec_has_773q(rec['location']):
                 data.append(rec)
             pbar.update(1)
-            if i > 1000:
-                break
 
     df = DataFrame(data)
     with open('data/marc_data/all_marc_v2.csv', 'w') as f:
