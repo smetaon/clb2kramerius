@@ -70,13 +70,14 @@ class KramAPIBase():
         self.url = url
         self.sep = sep
         self.tree = nx.DiGraph()
-        self._check_url()
         self.session = req.Session()
         # https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Status#server_error_responses
         retries = Retry(total=5, backoff_factor=1,
                         status_forcelist=[500, 502, 503, 504])
         # https://stackoverflow.com/questions/23267409/how-to-implement-retry-mechanism-into-python-requests-library
         self.session.mount('https://', HTTPAdapter(max_retries=retries))
+        self._check_version()
+        self._check_url()
 
     def _check_url(self):
         """Check that API URL is correct and functional.
@@ -154,7 +155,13 @@ class KramAPIBase():
             Kramerius API returns a version different from [57].x.x.
         """
         info = self.url + self.INFO
-        resp = self.get_response(info)
+        resp = self.session.get(info)
+        if not resp.ok:
+            # if the versions do not match, we use wrong urls, we expect 404 to be returned
+            err_msg = f'Kramerius API version probably does not match the set version ({self.VER.value}). Response code {resp.status_code}.'
+            logging.error(err_msg)
+            raise SystemExit(err_msg)
+
         ver = resp.json()['version']
         if ver[0] == self.VER.value:
             logging.info(
@@ -301,11 +308,13 @@ class KramAPIv7(KramAPIBase):
     ITEMS = '/search/api/client/v7.0/items/'
     STRUCT = '/info/structure'
     DETAILS = '/search/api/client/v7.0/search?fl=title.search,model&q=pid:'
+
+    CHILDREN = '/search/api/client/v7.0/search?fl=pid,model,title.search&q=own_parent.pid:'
+
     VER = KramVer.V7
 
     def __init__(self, url: str, sep='/') -> None:
         super().__init__(url, sep)
-        self._check_version()
 
     def _make_struct_url(self, uuid: str) -> str:
         """Generate URL for a structure request.
@@ -338,6 +347,11 @@ class KramAPIv7(KramAPIBase):
         # quotes have to a part of the API request
         return self.url+self.DETAILS+f'"{uuid}"'
 
+    def _make_children_url(self, uuid: str) -> str:
+        # todo: document
+        # quotes have to a part of the URL
+        return self.url+self.CHILDREN+f'"{uuid}"&rows=4000&sort=rels_ext_index.sort asc'
+
     def _find_children(self, uuid: str) -> list[dict[str, str]]:
         """Find children of a given UUID (JSON request).
 
@@ -349,13 +363,16 @@ class KramAPIv7(KramAPIBase):
         Returns
         -------
         list[dict[str, str]]
-            List of children in the form
-            `{'pid':___, 'relation':___}`
-            (`relation` is not used)
+            List of dictionaries in the form
+            `{'pid':___, 'model':___, 'title.search':___}`
         """
-        par_url = self._make_struct_url(uuid)
-        resp = self.get_response(par_url)
-        return resp.json()['children']['own']
+        req_url = self._make_children_url(uuid)
+        resp = self.get_response(req_url)
+        children = resp.json()['response']['docs']
+        if len(children) == 4_000:
+            logging.warning(
+                'Maximal number of rows in a response reached (4 000)')
+        return children
 
     def _find_node_details(self, node: dict[str, str]) -> tuple[str, str]:
         """Make a request for details about a UUID.
@@ -363,25 +380,22 @@ class KramAPIv7(KramAPIBase):
         Parameters
         ----------
         node : dict[str, str]
-            A node in the format `{'pid':___, 'relation':___}`
+            A node in the format `{'pid':___, 'model':___, 'title.search':___}`
 
         Returns
         -------
         tuple[str, str]
             `model` and `title.search` parameters from Kramerius.
         """
-        detail_url = self._make_detail_url(node['pid'])
-        resp = self.get_response(detail_url)
-        # these JSON response parameters could vary from library to library
-        model = resp.json()['response']['docs'][0]['model']
         try:
-            title = resp.json()['response']['docs'][0]['title.search']
+            title = node['title.search']
         except KeyError:
             default_tit_search = 'no_title_search'
             logging.warning(
                 f'No `title.search` parameter found, using `{default_tit_search}` ({node["pid"]})')
             title = default_tit_search
-        return (model, title)
+
+        return (node['model'], title)
 
 
 class KramAPIv5(KramAPIBase):
@@ -412,7 +426,6 @@ class KramAPIv5(KramAPIBase):
 
     def __init__(self, url: str, sep='/') -> None:
         super().__init__(url, sep)
-        self._check_version()
 
     def _make_children_url(self, uuid: str) -> str:
         """Create URL for a children request.
