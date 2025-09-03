@@ -27,7 +27,7 @@ Např. [001525270](https://vufind.ucl.cas.cz/Record/001525270) má 773q `1 [28]:
 🔴
 Asi je třeba změnit podobu záznamu v Krameriovi. Třeba to prohnat funkcí, která odstraní všechno v závorkách. Je otázka, jestli to nerozbije cesty.
 
-Nebo to zkusit namatchovat na regexem a nic neměnit (asi je lepší nic neměnit).
+Nebo to zkusit namatchovat regexem a nic neměnit (asi je lepší nic neměnit).
 
 
 ## Pomalé stahování
@@ -35,9 +35,12 @@ I když používáme API, tak je stahování šíleně pomalé.
 A protože je i docela nespolehlivé, tak pro větší periodika často ani nedoběhne do konce.
 
 ### Stav
-🔴
+🔴/🟢
+Částečné stahování je implementované.
+Zbývá zjistit, jak spolehlivě bude fungovat. 🧐
+
 Zkouším implementovat jakousi online verzi, tj. podívám se pouze na stránky, které mají záznamy v člb a ty se pokusím stáhnout.
-Uvidíme, jak to bude fungovat, dost záleží na kvalitě a konzistenci záznamů v člb a Krameriovi.
+
 
 Taky by šlo projet marcovské záznamy před stahováním z Krameria.
 Pokud jsou v nich hezké záznamy (asi skutečně aby 773q bylo: `vol:issue<page` a všechny složky byly rozumné (neobsahovaly závorky, mezery atd.)), tak stáhnout z Krameria jen to nezbytně nutné. 
@@ -49,7 +52,11 @@ Jiná možnost by byla implementovat podporu částečného stahování.
 
 ## Špatné údaje v 773q
 Zkusit zparsovat `773t` a porovnat to s `773q`?
-Např. v [000994686](https://vufind.ucl.cas.cz/Record/000994686) je `773q` špatně, ale `t` vypadád dobře.
+Např. v [000994686](https://vufind.ucl.cas.cz/Record/000994686) je `773q` špatně, ale `t` vypadá dobře.
+
+### Stav
+🟢
+Viz kontrola 773 od R.
 
 ## Slánský obzor
 Řekl bych, že je špatně vedený v Krameriovi.
@@ -85,12 +92,12 @@ Vyřešené tak, že pokud nenajdu stránku a volume má pouze jedno dítě (v d
 - Napárování periodik z člb na ta správná v digitálních knihovnách.
     - Stačí pro periodikum v člb najít uuid ve správné knihovně
     - Můžou být problémy s issn a názvy, asi to bude chtít nějakou ruční kontrolu
-    - Rok vydání v poli `008` je na pozici `[7:11]`
+    - ~~Rok vydání v poli `008` je na pozici `[7:11]`~~
     - [fuzzysearch](https://pypi.org/project/fuzzysearch/)
 - Zrychlení stahování dat Krameria
     - Bylo by fajn zkoušet najít pouze stránky, které jsou v záznamech v člb, místo stahování celého Krameria
         - To mi přijde jako takové celkově míň spolehlivé řešení, daleko robustnější je prostě mít všechno
-    - Asi lepší nápad je implementovat podporu částečného stahování
+    - ~~Asi lepší nápad je implementovat podporu částečného stahování~~ **hotovo**
     - ~~Jejich API je nespolehlivé a občas se prostě odmlčí~~ **docela dobře řeší použití** `requests.Session()`
 - Jak kontrolovat výsledné odkazy? Může se stát
     1) Odkaz vede na správnou stránku a správný článek
