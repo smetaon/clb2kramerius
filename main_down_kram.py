@@ -19,7 +19,7 @@ def main_mass():
         console_log.setLevel(log_lvl)
         root_logger.addHandler(console_log)
 
-    PATH = 'data/mzk_medium/mzk_medium_dwn_copy.csv'
+    PATH = 'data/mzk_medium/mzk_medium.csv'
     with open(PATH) as f:
         csv = pd.read_csv(f, delimiter=';', keep_default_na=False)
     csv_copy = csv.copy()
@@ -37,15 +37,15 @@ def main_mass():
             root_logger.addHandler(text_log)
 
             per = Periodical(
-                name=row.title,  # type: ignore
-                uuid=row.uuid,  # type: ignore
+                name=str(row.title),
+                uuid=str(row.uuid),
                 library='mzk',
                 kramerius_ver='7',
                 url='https://www.digitalniknihovna.cz/mzk',
                 api_url='https://api.kramerius.mzk.cz'
             )
 
-            per.complete_download(prog_bar)
+            per.complete_download(prog_bar, save_part=True)
             per.save(f'data/mzk_medium/{log_title}.json')
 
             root_logger.removeHandler(text_log)
@@ -57,26 +57,36 @@ def main_mass():
 
 
 def main_single():
-    prog_bar = True
+    prog_bar = False
     if not prog_bar:
         logging.basicConfig(
             level=logging.INFO,
             format='%(asctime)s:%(name)s:%(levelname)s:%(message)s')
 
+    # per = Periodical(
+    #     name='frenstat',
+    #     uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
+    #     library='mzk',
+    #     kramerius_ver='7',
+    #     url='https://www.digitalniknihovna.cz/mzk',
+    #     api_url='https://api.kramerius.mzk.cz'
+    # )
+
     per = Periodical(
-        name='frenštát',
-        uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
-        library='mzk',
-        kramerius_ver='7',
-        url='https://www.digitalniknihovna.cz/mzk',
-        api_url='https://api.kramerius.mzk.cz'
+        name='slansky obzor',
+        uuid='uuid:597d4560-66fb-11de-ad0b-000d606f5dc6',
+        library='nkp',
+        kramerius_ver='5',
+        url='https://kramerius5.nkp.cz',
+        api_url='https://kramerius5.nkp.cz'
     )
 
-    per.complete_download(prog_bar)
+    per.complete_download(prog_bar, save_part=True)
+    # per.save(f'data/debug/{per.name}')
 
 
 if __name__ == '__main__':
-    main_mass()
-    # start = time.time()
-    # main_single()
-    # print(time.time()-start)
+    # main_mass()
+    start = time.time()
+    main_single()
+    print(f'it took {time.time()-start:.1f} sec')
