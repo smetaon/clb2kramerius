@@ -21,10 +21,10 @@ per = Periodical(
 per.build_clb_tree('data/marc_data/frenstat_marc.csv')
 print(list(per.clb_tree.successors('root')))
 
-per._select_scraper()
-per.scraper.dfs_with_clb_tree(
+per._select_KramAPI()
+per.api.dfs_with_clb_tree(
     per.uuid, 'periodical', per.root, per.clb_tree, per.root)
-per.tree = per.scraper.return_tree()
+per.tree = per.api.return_tree()
 print(per.tree)
 per.save('data/frenstat_clb_tree.json')
 
