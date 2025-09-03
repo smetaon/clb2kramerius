@@ -7,6 +7,7 @@ from requests.adapters import HTTPAdapter, Retry
 import Parse773
 import csv
 from tqdm import tqdm
+import os
 
 
 class Library(Enum):
@@ -41,30 +42,37 @@ class KramAPIBase():
     ----------
     url : str
         Kramerius API URL. It should not end with `/`.
-
     sep : str
         Separator used in keys when downloading from Kramerius. By default `/`.
-
     tree : nx.DiGraph()
         The tree of the digited periodical.
         Keys are made by concatenating volume/issue/page number.
-
     INFO : str
         String to pass to API to receive info about Kramerius installation.
-
     VER : KramVer
         Kramerius version. So far, 5 and 7.   
-
     vols_to_dw : int
         Number of volumes to download.
         To be used in a simple progress bar.
-
     progress_bar : tdqm()
         Progress bar object.
+    prog_bar : bool
+        Progress bar is enabled. By default `False`.
+    save_part : bool
+        Save to disk after compeleting a download of a volume. By default `False`.
+    tmp_file : str
+        File to save partially downloaded tree.
+    root_id : str
+        Root ID, usually `root`.
     """
     INFO: str
     VER: KramVer
     vols_to_dwn: int = 0
+    prog_bar: bool = False
+    save_part: bool = False
+    tmp_file: str
+    root_id: str
+    downloaded_vols: set = set()
 
     def __init__(self, url: str, sep='/') -> None:
         self.url = url
@@ -171,23 +179,20 @@ class KramAPIBase():
             logging.error(msg)
             raise ValueError(msg)
 
+    def _set_root_id(self, root_id) -> None:
+        self.root_id = root_id
+
     def _find_children(self, uuid: str):
         raise NotImplementedError("Subclass needs to define this.")
 
     def _find_node_details(self, node):
         raise NotImplementedError("Subclass needs to define this.")
 
-    def dfs(self, parent_uuid: str, model: str, par_id: str, prog_bar: bool) -> None:
+    def dfs(self, parent_uuid: str, model: str, par_id: str) -> None:
         """Perform DFS to find children.
 
         Kramerius versions differ in requests and responses to 
         find children and details.
-
-        In V5, it is enough to send a request for _children_.
-        Each child has information about `model` and page number.
-
-        In V7, we have to first send a request for a list of children.
-        Then, we have to ask for details of each child.
 
         Parameters
         ----------
@@ -210,6 +215,10 @@ class KramAPIBase():
             child_uuid = child['pid']
             child_model, child_title = self._find_node_details(child)
             child_id = par_id + self.sep + child_title
+            if child_uuid in self.downloaded_vols:
+                logging.info(
+                    f'Skipping downloaded volume `{child_id}` ({child_uuid})')
+                continue
 
             self.tree.add_edge(par_id, child_id)
             self.tree.nodes[child_id]['model'] = child_model
@@ -218,9 +227,64 @@ class KramAPIBase():
             logging.info(
                 f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
 
-            self.dfs(child_uuid, child_model, child_id, prog_bar)
-            if prog_bar and child_model == 'periodicalvolume':
+            self.dfs(child_uuid, child_model, child_id)
+            if self.prog_bar and child_model == 'periodicalvolume':  # todo: try to think of a more robust check
                 self.progress_bar.update(1)
+            if self.save_part and child_model == 'periodicalvolume':
+                self.save_tree(self.tmp_file)
+        return
+
+    def _load_partial_tree(self) -> None:
+        # todo: document
+        try:
+            with open(self.tmp_file) as f:
+                json_tree = json.load(f)
+            logging.info(
+                f'Loading partially downloaded tree from `{self.tmp_file}`')
+            self.tree = nx.tree_graph(json_tree)
+        except FileNotFoundError:
+            logging.info(
+                f'No file with partial downloads found (expected `{self.tmp_file}`)')
+
+    def _get_downloaded_vols(self) -> None:
+        # todo: document
+        vols_uuids = set()
+        for vol in self.tree.successors(self.root_id):
+            uuid = self.tree.nodes[vol]['uuid']
+            vols_uuids.add(uuid)
+        self.downloaded_vols = vols_uuids
+
+    def prep_partial_down(self):
+        self._load_partial_tree()
+        if len(self.tree) > 0:
+            self._get_downloaded_vols()
+
+    def tree_to_json(self):
+        """Save the tree to a JSON format.
+
+        The format is `tree_data` from networkx. 
+
+        Returns
+        -------
+        dict
+            A dictionary with node-link formatted data. 
+        """
+        return nx.tree_data(self.tree, root=self.root_id)
+
+    def save_tree(self, path: str) -> None:
+        """Save the (partially) downloaded tree to a JSON file.
+
+        Parameters
+        ----------
+        path : str
+            Where to save the tree.
+        """
+        g_json = self.tree_to_json()
+        with open(path, 'w') as out:
+            json.dump(g_json, out, indent='\t', ensure_ascii=False)
+
+        logging.info(
+            f"Tree saved to {path} (Nodes={self.tree.number_of_nodes()} Edges={self.tree.number_of_edges()})")
         return
 
     def dfs_with_clb_tree(self, parent_uuid: str, model: str, par_id: str, clb_tree: nx.DiGraph, clb_node) -> None:
@@ -286,6 +350,13 @@ class KramAPIBase():
         self.progress_bar = tqdm(desc=desc,
                                  total=self.vols_to_dwn,
                                  bar_format="{l_bar}{bar:20} [{n_fmt}/{total_fmt} volumes]")
+        logging.info('Enabling progress bar (volumes only)')
+        self.prog_bar = True
+
+    def set_partial_save(self, tmp_path: str) -> None:
+        self.save_part = True
+        self.tmp_file = tmp_path
+        logging.info(f'Enabling partial saving to `{self.tmp_file}`')
 
 
 class KramAPIv7(KramAPIBase):
@@ -304,6 +375,7 @@ class KramAPIv7(KramAPIBase):
         https://docs.google.com/spreadsheets/d/1DoDnSIGPqPnYbb0U2RSNLKm9eAY2FQNimJyTPeQsC2A/edit?gid=0#gid=0
 
     """
+    INFO = '/search/api/client/v7.0/info'
     CHILDREN = '/search/api/client/v7.0/search?fl=pid,model,title.search&q=own_parent.pid:'
     VER = KramVer.V7
 
@@ -483,27 +555,33 @@ class Periodical:
     ---------
     name : str
         Name of a periodical.
-    uuid : str
+    uuid : str # todo: asi přejmenovat na `per_uuid`
         A unique identifier of a periodical from a digital library.
     library : str
         The library that digitized the periodical.
     kramerius_ver : str
         Kramerius version running in the library.
     url : str
-        The base URL of the library. Do not use URL with '/' at the end.
+        The base URL of the library. Do not use URL with `/` at the end.
     api_url : str
-        The Kramerius API URL. Do not use URL with '/' at the end.
+        The Kramerius API URL. Do not use URL with `/` at the end.
     tree : networkx.DiGraph
         The tree of the digited periodical.
         Keys are made by concatenating volume/issue/page number.
     id_sep : str
-        Separator used in keys in the tree, by default '/'.
-    root : str
-        Root ID, by default 'root'.
+        Separator used in keys in the tree, by default `/`.
+    root : str # todo: asi přejmenovat na `root_id`
+        Root ID, by default `root`.
     link_uuid : str
-        Part of URL linking to a particular UUID, by default 'uuid'.
+        Part of URL linking to a particular UUID, by default `uuid`.
     max_depth : int
-        Maximum depth of the downloaded tree (zero-based counting), by default 3.
+        Maximum depth of the downloaded tree (zero-based counting), by default `3`.
+    clb_tree : nx.Digraph
+        #todo: document
+    tmp_path : str
+        Path to a folder to save partial downloads.
+    is_partial : bool
+        `True` if I should resume downloading the tree, `False` otherwise.
     """
     # TODO: uložit ISSN, pokud je dostupné (z Krameria snad ano)
 
@@ -518,8 +596,9 @@ class Periodical:
                  id_sep='/',
                  root='root',
                  link_uuid='uuid',
-                 clb_tree=nx.DiGraph(),  # todo: document
-                 max_depth=3
+                 clb_tree=nx.DiGraph(),
+                 max_depth=3,
+                 tmp_path='data/tmp/',
                  ):
         self.name = name
         self.uuid = uuid
@@ -533,6 +612,7 @@ class Periodical:
         self.link_uuid = link_uuid
         self.clb_tree = clb_tree
         self.max_depth = max_depth
+        self.tmp_file = tmp_path+self.uuid+'.json'
 
         self._check_url()
 
@@ -547,9 +627,9 @@ class Periodical:
             Only V7 and V5 is supported
         """
         if self.kramerius_ver == KramVer.V7.value:
-            self.api = KramAPIv7(self.api_url)
+            self.api = KramAPIv7(self.api_url, self.id_sep)
         elif self.kramerius_ver == KramVer.V5.value:
-            self.api = KramAPIv5(self.api_url)
+            self.api = KramAPIv5(self.api_url, self.id_sep)
         else:
             raise Exception('Only V7 and V5 is supported')
 
@@ -567,31 +647,6 @@ class Periodical:
     def __str__(self) -> str:
         return f"{self.name} UUID={self.uuid}, lib={self.library}, url={self.url}, ver={self.kramerius_ver}, api_url={self.api_url}"
 
-    def save_tree(self, path: str) -> None:
-        """Save the tree to a JSON file.
-        The format is `tree_data` from networkx. If the the graph/tree is not tree, the format is `node_link_data` and a warning is logged.
-
-        Parameters
-        ----------
-        path : str
-            Path to a file to write to. It is rewritten on each save.
-        """
-        with open(path, 'w') as f:
-            if not nx.is_tree(self.tree):
-                logging.warning(
-                    'Not a tree! Saving using `node_link_data` format')
-                graph = nx.node_link_data(
-                    self.tree, edges='edges')  # type: ignore
-            else:
-                graph = nx.tree_data(self.tree, root=self.root)
-            json.dump(graph, f, indent='\t')
-
-        logging.info(
-            f'Nodes={self.tree.number_of_nodes()} Edges={self.tree.number_of_edges()}')
-        logging.info(
-            f"Tree saved to {path}")
-        return
-
     def save(self, path: str) -> None:
         """Save the object parameters to path in JSON.
 
@@ -600,13 +655,8 @@ class Periodical:
         path : str
             Path to save location.
         """
-        if not nx.is_tree(self.tree):
-            logging.warning(
-                'Not a tree! Saving using `node_link_data` format')
-            graph = nx.node_link_data(
-                self.tree, edges='edges')  # type: ignore
-        else:
-            graph = nx.tree_data(self.tree, root=self.root)
+
+        graph = nx.tree_data(self.tree, self.root)
         logging.info(
             f'Nodes={self.tree.number_of_nodes()} Edges={self.tree.number_of_edges()}')
 
@@ -620,11 +670,13 @@ class Periodical:
             'tree': graph,
             'id_sep': self.id_sep,
             'root': self.root,
-            'link_uuid': self.link_uuid
+            'link_uuid': self.link_uuid,
+            'max_depth': self.max_depth,
+            'tmp_path': self.tmp_file,
         }
         with open(path, 'w') as f:
             json.dump(params, f, indent='\t', ensure_ascii=False)
-        logging.info(f'Saved to {path}')
+        logging.info(f'JSON saved to {path}')
         return
 
     def make_url(self, uuid: str) -> str:
@@ -642,19 +694,33 @@ class Periodical:
         """
         return self.url+'/'+self.link_uuid+'/'+uuid
 
-    def complete_download(self, prog_bar: bool) -> None:
-        """Use depth-first search to find children starting 
-        from UUID of a periodical.
-        """
-        self._select_KramAPI()
+    def _set_KramAPI(self, root_id: str, prog_bar: bool, save_part: bool) -> None:
+        if not hasattr(self, 'api'):
+            err_msg = 'No API found. Call `_select_KramAPI()` first.'
+            raise SystemExit(err_msg)
+
+        self.api._set_root_id(root_id)
+
         if prog_bar:
             self.api.count_vols_to_dwn(self.uuid)
             self.api.create_progress_bar(self.name)
 
-        self.api.dfs(self.uuid, 'periodical', self.root, prog_bar)
+        if save_part:
+            self.api.set_partial_save(self.tmp_file)
+            self.api.prep_partial_down()
+
+    def complete_download(self, prog_bar: bool, save_part: bool) -> None:
+        """Use depth-first search to find children starting 
+        from UUID of a periodical.
+        """
+        self._select_KramAPI()
+        self._set_KramAPI(self.root, prog_bar, save_part)
+
+        self.api.dfs(self.uuid, 'periodical', self.root)
 
         self.tree = self.api.return_tree()
         self.check_tree_depth()
+        self.delete_temp_file()
 
     def check_tree_depth(self) -> None:
         """Check that the downloaded tree is not too deep.
@@ -883,6 +949,13 @@ class Periodical:
             self.clb_tree.nodes[child]['number'] = l[i]
             logging.info(f'Adding edge to ČLB tree: `{parent}`--`{child}`')
         return
+
+    def delete_temp_file(self) -> None:
+        if os.path.exists(self.tmp_file):
+            logging.info(f'Removing temp file `{self.tmp_file}`')
+            os.remove(self.tmp_file)
+        else:
+            logging.warning(f'Removing temp file failed ({self.tmp_file})')
 
 
 def load_periodical(path: str) -> Periodical:
