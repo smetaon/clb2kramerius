@@ -10,7 +10,7 @@ logging.basicConfig(level=logging.INFO)
 
 per = Periodical(
     name='frenstat',
-    uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
+    per_uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
     library='mzk',
     kramerius_ver='7',
     url='https://www.digitalniknihovna.cz/mzk',
@@ -23,7 +23,7 @@ print(list(per.clb_tree.successors('root')))
 
 per._select_KramAPI()
 per.api.dfs_with_clb_tree(
-    per.uuid, 'periodical', per.root, per.clb_tree, per.root)
+    per.per_uuid, 'periodical', per.root_id, per.clb_tree, per.root_id)
 per.tree = per.api.return_tree()
 print(per.tree)
 per.save('data/frenstat_clb_tree.json')

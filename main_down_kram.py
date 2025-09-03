@@ -38,7 +38,7 @@ def main_mass():
 
             per = Periodical(
                 name=str(row.title),
-                uuid=str(row.uuid),
+                per_uuid=str(row.uuid),
                 library='mzk',
                 kramerius_ver='7',
                 url='https://www.digitalniknihovna.cz/mzk',
@@ -74,7 +74,7 @@ def main_single():
 
     per = Periodical(
         name='slansky obzor',
-        uuid='uuid:597d4560-66fb-11de-ad0b-000d606f5dc6',
+        per_uuid='uuid:597d4560-66fb-11de-ad0b-000d606f5dc6',
         library='nkp',
         kramerius_ver='5',
         url='https://kramerius5.nkp.cz',

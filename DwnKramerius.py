@@ -64,6 +64,8 @@ class KramAPIBase():
         File to save partially downloaded tree.
     root_id : str
         Root ID, usually `root`.
+    downloaded_vols : set[str]
+        UUIDs of already downloaded volumes.
     """
     INFO: str
     VER: KramVer
@@ -141,7 +143,7 @@ class KramAPIBase():
         try:
             resp = self.session.get(url, headers=headers, timeout=40)
             resp.raise_for_status()
-        # todo: místo SystemExit nějaká jiná exception
+        # TODO: místo SystemExit nějaká jiná exception
         except req.HTTPError as err:
             logging.error(err)
             raise SystemExit(err)
@@ -228,14 +230,17 @@ class KramAPIBase():
                 f"Adding edge between `{par_id}` and `{child_id}` ({model}--{child_model})")
 
             self.dfs(child_uuid, child_model, child_id)
-            if self.prog_bar and child_model == 'periodicalvolume':  # todo: try to think of a more robust check
+            if self.prog_bar and child_model == 'periodicalvolume':  # TODO: try to think of a more robust check
                 self.progress_bar.update(1)
             if self.save_part and child_model == 'periodicalvolume':
                 self.save_tree(self.tmp_file)
         return
 
     def _load_partial_tree(self) -> None:
-        # todo: document
+        """Load a partially downloaded tree from `tmp_file`.
+
+        If no file is found, do nothing.
+        """
         try:
             with open(self.tmp_file) as f:
                 json_tree = json.load(f)
@@ -244,20 +249,30 @@ class KramAPIBase():
             self.tree = nx.tree_graph(json_tree)
         except FileNotFoundError:
             logging.info(
-                f'No file with partial downloads found (expected `{self.tmp_file}`)')
+                f'No file with partial downloads found')
+        return
 
     def _get_downloaded_vols(self) -> None:
-        # todo: document
+        """Find volumes (i.e. children of `root`) in  `tree`.
+
+        Save UUIDs of these volumes to `downloaed_vols` in the form `set[str]`.
+        """
         vols_uuids = set()
         for vol in self.tree.successors(self.root_id):
             uuid = self.tree.nodes[vol]['uuid']
             vols_uuids.add(uuid)
         self.downloaded_vols = vols_uuids
+        return
 
-    def prep_partial_down(self):
+    def prep_partial_down(self) -> None:
+        """Prepare the partially downloaded tree.
+
+        First, load it to memory and then get downloaded volumes.
+        """
         self._load_partial_tree()
         if len(self.tree) > 0:
             self._get_downloaded_vols()
+        return
 
     def tree_to_json(self):
         """Save the tree to a JSON format.
@@ -288,7 +303,7 @@ class KramAPIBase():
         return
 
     def dfs_with_clb_tree(self, parent_uuid: str, model: str, par_id: str, clb_tree: nx.DiGraph, clb_node) -> None:
-        # todo: complete implementation
+        # TODO: complete implementation
         raise NotImplementedError
         children = self._find_children(parent_uuid)
 
@@ -555,7 +570,7 @@ class Periodical:
     ---------
     name : str
         Name of a periodical.
-    uuid : str # todo: asi přejmenovat na `per_uuid`
+    per_uuid : str
         A unique identifier of a periodical from a digital library.
     library : str
         The library that digitized the periodical.
@@ -570,14 +585,14 @@ class Periodical:
         Keys are made by concatenating volume/issue/page number.
     id_sep : str
         Separator used in keys in the tree, by default `/`.
-    root : str # todo: asi přejmenovat na `root_id`
+    root : str
         Root ID, by default `root`.
     link_uuid : str
         Part of URL linking to a particular UUID, by default `uuid`.
     max_depth : int
         Maximum depth of the downloaded tree (zero-based counting), by default `3`.
     clb_tree : nx.Digraph
-        #todo: document
+        #TODO: document
     tmp_path : str
         Path to a folder to save partial downloads.
     is_partial : bool
@@ -587,32 +602,32 @@ class Periodical:
 
     def __init__(self,
                  name: str,
-                 uuid: str,
+                 per_uuid: str,
                  library: str,
                  kramerius_ver: str,
                  url: str,
                  api_url: str,
                  tree=nx.DiGraph(),
                  id_sep='/',
-                 root='root',
+                 root_id='root',
                  link_uuid='uuid',
                  clb_tree=nx.DiGraph(),
                  max_depth=3,
                  tmp_path='data/tmp/',
                  ):
         self.name = name
-        self.uuid = uuid
+        self.per_uuid = per_uuid
         self.library = library
         self.kramerius_ver = kramerius_ver
         self.url = url
         self.api_url = api_url
         self.tree = tree
         self.id_sep = id_sep
-        self.root = root
+        self.root_id = root_id
         self.link_uuid = link_uuid
         self.clb_tree = clb_tree
         self.max_depth = max_depth
-        self.tmp_file = tmp_path+self.uuid+'.json'
+        self.tmp_file = tmp_path+self.per_uuid+'.json'
 
         self._check_url()
 
@@ -645,7 +660,7 @@ class Periodical:
             raise ValueError('URL should not end with `/`.')
 
     def __str__(self) -> str:
-        return f"{self.name} UUID={self.uuid}, lib={self.library}, url={self.url}, ver={self.kramerius_ver}, api_url={self.api_url}"
+        return f"{self.name} UUID={self.per_uuid}, lib={self.library}, url={self.url}, ver={self.kramerius_ver}, api_url={self.api_url}"
 
     def save(self, path: str) -> None:
         """Save the object parameters to path in JSON.
@@ -656,20 +671,20 @@ class Periodical:
             Path to save location.
         """
 
-        graph = nx.tree_data(self.tree, self.root)
+        graph = nx.tree_data(self.tree, self.root_id)
         logging.info(
             f'Nodes={self.tree.number_of_nodes()} Edges={self.tree.number_of_edges()}')
 
         params = {
             'name': self.name,
-            'uuid': self.uuid,
+            'uuid': self.per_uuid,
             'library': self.library,
             'kramerius_ver': self.kramerius_ver,
             'url': self.url,
             'api_url': self.api_url,
             'tree': graph,
             'id_sep': self.id_sep,
-            'root': self.root,
+            'root': self.root_id,
             'link_uuid': self.link_uuid,
             'max_depth': self.max_depth,
             'tmp_path': self.tmp_file,
@@ -702,7 +717,7 @@ class Periodical:
         self.api._set_root_id(root_id)
 
         if prog_bar:
-            self.api.count_vols_to_dwn(self.uuid)
+            self.api.count_vols_to_dwn(self.per_uuid)
             self.api.create_progress_bar(self.name)
 
         if save_part:
@@ -714,9 +729,9 @@ class Periodical:
         from UUID of a periodical.
         """
         self._select_KramAPI()
-        self._set_KramAPI(self.root, prog_bar, save_part)
+        self._set_KramAPI(self.root_id, prog_bar, save_part)
 
-        self.api.dfs(self.uuid, 'periodical', self.root)
+        self.api.dfs(self.per_uuid, 'periodical', self.root_id)
 
         self.tree = self.api.return_tree()
         self.check_tree_depth()
@@ -735,7 +750,7 @@ class Periodical:
         if len(self.tree) <= 2:
             raise ValueError('No tree to check!')
         try:
-            self._check_tree_depth(self.root, self.max_depth, 0)
+            self._check_tree_depth(self.root_id, self.max_depth, 0)
         except ValueError:
             logging.warning('Tree is too deep!')
         return
@@ -807,11 +822,11 @@ class Periodical:
         str | None
             Link to a page or `None` if the path leads nowhere.
         """
-        # todo: asi by bylo lepší hodit záznamy, ke kterým jsem okamžitě nenašel uuid do nějakého seznamu
+        # TODO: asi by bylo lepší hodit záznamy, ke kterým jsem okamžitě nenašel uuid do nějakého seznamu
         # a tenhle seznam projet nějakou fcí, která to zkusí znova nalinkovat a diagnostikovat proč první linkování nevyšlo
         # prostě tu funkci rozsekat
         path_to_page = self._make_path_to_node(
-            [self.root, volume, issue, page])
+            [self.root_id, volume, issue, page])
         link_to_page = self._link(path_to_page)
 
         # It can happen that there is no `issue` in člb record, but there is an issue number from Kramerius.
@@ -821,7 +836,7 @@ class Periodical:
         if self._volume_has_one_issue(volume):
             new_issue = self._find_only_child_of_vol(volume)
             new_path_to_page = self._make_path_to_node(
-                [self.root, volume, new_issue, page])
+                [self.root_id, volume, new_issue, page])
             logging.info(
                 f'Node `{path_to_page}` not found, but it has only one child. Trying path with the one child `{new_path_to_page}`')
             link_to_page = self._link(new_path_to_page)
@@ -845,7 +860,7 @@ class Periodical:
         bool
             `True` if volume has one child, `False` otherwise.
         """
-        path_to_vol = self._make_path_to_node([self.root, volume])
+        path_to_vol = self._make_path_to_node([self.root_id, volume])
         try:
             self.tree.nodes[path_to_vol]
         except KeyError:
@@ -871,7 +886,7 @@ class Periodical:
         ValueError
             Volume has more than one child.
         """
-        path_to_vol = self._make_path_to_node([self.root, volume])
+        path_to_vol = self._make_path_to_node([self.root_id, volume])
         children = list(self.tree.successors(path_to_vol))
         if len(children) != 1:
             raise ValueError('More than one child!')
@@ -905,7 +920,7 @@ class Periodical:
         path : str
             Path to a CSV file with 773q records.
         """
-        # todo: uložit tenhle strom do jsonu
+        # TODO: uložit tenhle strom do jsonu
         with open(path) as f:
             reader = csv.DictReader(f, delimiter=';')
             for row in reader:
@@ -941,7 +956,7 @@ class Periodical:
         if None in [volume, issue, page]:
             raise ValueError(
                 f'There should be no `None`! {volume=}, {issue=}, {page=}')
-        l = [self.root, volume, issue, page]
+        l = [self.root_id, volume, issue, page]
         for i in range(1, len(l)):
             parent = self._make_path_to_node(l[:i])
             child = self._make_path_to_node(l[:i+1])
