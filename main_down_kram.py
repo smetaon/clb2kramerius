@@ -31,7 +31,7 @@ def main_mass():
     for row in csv.itertuples():
         if row.downloaded == 'F':
             now = datetime.datetime.now()
-            timestamp = now.strftime(r"%m%d%H%M%S")
+            timestamp = now.strftime(r"%m%d%H%M")
             log_title = row.uuid
             log_path = f'data/mzk_medium/logs/{timestamp}_{log_title}.log'
 
@@ -46,11 +46,13 @@ def main_mass():
                 library='mzk',
                 kramerius_ver='7',
                 url='https://www.digitalniknihovna.cz/mzk',
-                api_url='https://api.kramerius.mzk.cz'
+                api_url='https://api.kramerius.mzk.cz',
+                issn=str(row.issn)
             )
 
             per.complete_download(prog_bar, save_part=True)
             per.save(f'data/mzk_medium/{log_title}.json')
+            per.delete_temp_file
 
             root_logger.removeHandler(text_log)
             csv_copy.at[row.Index, 'downloaded'] = 'T'
@@ -67,14 +69,15 @@ def main_single():
             level=logging.INFO,
             format='%(asctime)s:%(name)s:%(levelname)s:%(message)s')
 
-    # per = Periodical(
-    #     name='frenstat',
-    #     uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
-    #     library='mzk',
-    #     kramerius_ver='7',
-    #     url='https://www.digitalniknihovna.cz/mzk',
-    #     api_url='https://api.kramerius.mzk.cz'
-    # )
+    per = Periodical(
+        name='frenstat',
+        per_uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
+        library='mzk',
+        kramerius_ver='7',
+        url='https://www.digitalniknihovna.cz/mzk',
+        api_url='https://api.kramerius.mzk.cz',
+        issn=''
+    )
 
     per = Periodical(
         name='slansky obzor',
@@ -82,7 +85,8 @@ def main_single():
         library='nkp',
         kramerius_ver='5',
         url='https://kramerius5.nkp.cz',
-        api_url='https://kramerius5.nkp.cz'
+        api_url='https://kramerius5.nkp.cz',
+        issn=''
     )
 
     per.complete_download(prog_bar, save_part=True)

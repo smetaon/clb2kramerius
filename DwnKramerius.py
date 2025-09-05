@@ -143,7 +143,6 @@ class KramAPIBase():
         try:
             resp = self.session.get(url, headers=headers, timeout=40)
             resp.raise_for_status()
-        # TODO: místo SystemExit nějaká jiná exception
         except req.HTTPError as err:
             logging.error(err)
             raise SystemExit(err)
@@ -580,6 +579,8 @@ class Periodical:
         The base URL of the library. Do not use URL with `/` at the end.
     api_url : str
         The Kramerius API URL. Do not use URL with `/` at the end.
+    issn : str
+        ISSN of the periodical, if it is available.
     tree : networkx.DiGraph
         The tree of the digited periodical.
         Keys are made by concatenating volume/issue/page number.
@@ -598,7 +599,6 @@ class Periodical:
     is_partial : bool
         `True` if I should resume downloading the tree, `False` otherwise.
     """
-    # TODO: uložit ISSN, pokud je dostupné (z Krameria snad ano)
 
     def __init__(self,
                  name: str,
@@ -607,6 +607,7 @@ class Periodical:
                  kramerius_ver: str,
                  url: str,
                  api_url: str,
+                 issn: str,
                  tree=nx.DiGraph(),
                  id_sep='/',
                  root_id='root',
@@ -621,6 +622,7 @@ class Periodical:
         self.kramerius_ver = kramerius_ver
         self.url = url
         self.api_url = api_url
+        self.issn = issn
         self.tree = tree
         self.id_sep = id_sep
         self.root_id = root_id
@@ -691,7 +693,7 @@ class Periodical:
         }
         with open(path, 'w') as f:
             json.dump(params, f, indent='\t', ensure_ascii=False)
-        logging.info(f'JSON saved to {path}')
+        logging.info(f'JSON saved to `{path}`')
         return
 
     def make_url(self, uuid: str) -> str:
