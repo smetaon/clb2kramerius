@@ -2,10 +2,14 @@ from DwnKramerius import Periodical, load_periodical
 import logging
 import datetime
 import time
+import os
 import pandas as pd
 
 
 def main_mass():
+    with open('.pid', 'w') as f:
+        print(os.getpid(), file=f)
+
     log_formatter = logging.Formatter(
         '%(asctime)s:%(name)s:%(levelname)s:%(message)s')
     root_logger = logging.getLogger()
@@ -29,7 +33,7 @@ def main_mass():
             now = datetime.datetime.now()
             timestamp = now.strftime(r"%m%d%H%M%S")
             log_title = row.uuid
-            log_path = f'data/mzk_medium/logs/{log_title}_{timestamp}.log'
+            log_path = f'data/mzk_medium/logs/{timestamp}_{log_title}.log'
 
             text_log = logging.FileHandler(log_path, mode='w')
             text_log.setFormatter(log_formatter)
@@ -86,7 +90,7 @@ def main_single():
 
 
 if __name__ == '__main__':
-    # main_mass()
-    start = time.time()
-    main_single()
-    print(f'it took {time.time()-start:.1f} sec')
+    main_mass()
+    # start = time.time()
+    # main_single()
+    # print(f'it took {time.time()-start:.1f} sec')
