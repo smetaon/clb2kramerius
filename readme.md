@@ -35,17 +35,17 @@ I když používáme API, tak je stahování šíleně pomalé.
 A protože je i docela nespolehlivé, tak pro větší periodika často ani nedoběhne do konce.
 
 ### Stav
-🔴/🟢
+🟢
 Částečné stahování je implementované.
 Zbývá zjistit, jak spolehlivě bude fungovat. 🧐
+Docela dobře!
 
-Zkouším implementovat jakousi online verzi, tj. podívám se pouze na stránky, které mají záznamy v člb a ty se pokusím stáhnout.
+~~Zkouším implementovat jakousi online verzi, tj. podívám se pouze na stránky, které mají záznamy v člb a ty se pokusím stáhnout.~~
 
-
-Taky by šlo projet marcovské záznamy před stahováním z Krameria.
+~~Taky by šlo projet marcovské záznamy před stahováním z Krameria.
 Pokud jsou v nich hezké záznamy (asi skutečně aby 773q bylo: `vol:issue<page` a všechny složky byly rozumné (neobsahovaly závorky, mezery atd.)), tak stáhnout z Krameria jen to nezbytně nutné. 
 Tím odpadá potřeba implementovat nějaké heuristiky ještě před stahováním.
-Pokud bychom našli nějaké nestandardní 773q, tak bychom stáhli všechno.
+Pokud bychom našli nějaké nestandardní 773q, tak bychom stáhli všechno.~~
 
 Jiná možnost by byla implementovat podporu částečného stahování.
 
@@ -58,7 +58,7 @@ Např. v [000994686](https://vufind.ucl.cas.cz/Record/000994686) je `773q` špat
 🟢
 Viz kontrola 773 od R.
 
-## Slánský obzor
+## Slanský obzor
 Řekl bych, že je špatně vedený v Krameriovi.
 V člb sice sedí název a issn, ale roky vydání jsou úplně jiné.
 Periodikum v Krameriovi je z 1. poloviny 20. století a záznamy v člb jsou z 21. století.
@@ -94,7 +94,7 @@ Vyřešené tak, že pokud nenajdu stránku a volume má pouze jedno dítě (v d
     - Můžou být problémy s issn a názvy, asi to bude chtít nějakou ruční kontrolu
     - ~~Rok vydání v poli `008` je na pozici `[7:11]`~~
     - [fuzzysearch](https://pypi.org/project/fuzzysearch/)
-- Zrychlení stahování dat Krameria
+- ~~Zrychlení stahování dat Krameria~~ 🟢
     - Bylo by fajn zkoušet najít pouze stránky, které jsou v záznamech v člb, místo stahování celého Krameria
         - To mi přijde jako takové celkově míň spolehlivé řešení, daleko robustnější je prostě mít všechno
     - ~~Asi lepší nápad je implementovat podporu částečného stahování~~ **hotovo**
