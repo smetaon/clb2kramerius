@@ -3,10 +3,13 @@ from DwnKramerius import Periodical
 from enum import Enum, auto
 import csv
 from Parse773 import parse_location, normalize
-from collections import namedtuple
+from dataclasses import dataclass, field
 
 
 class ErrorCodes(Enum):
+    TO_PROCESS = auto()
+    SUCCESS = auto()
+    TO_DIAGNOSE = auto()
 
     PAGE_NOT_DIGI = auto()
     VOL_NOT_DIGI = auto()
@@ -15,12 +18,31 @@ class ErrorCodes(Enum):
     NONSTANDARD_773 = auto()
     WRONG_773 = auto()
 
+    MISSING_PAGE = auto()
+    MISSING_ISSUE = auto()
+    MISSING_VOL = auto()
+    MISSING_MULTIPLE = auto()
+
+
+@dataclass
+class Record:
+    id: str
+    raw_loc: str
+    error_code: ErrorCodes = ErrorCodes.TO_PROCESS
+    link: str | None = None
+
+    volume: str | None = field(init=False)
+    issue: str | None = field(init=False)
+    page: str | None = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.volume, self.issue, self.page = normalize(
+            *parse_location(self.raw_loc))
+
 
 class Kram2CLB:
     def __init__(self, perio: Periodical, marc_path: str) -> None:
-        self.to_proc = set()
-        self.success = set()
-        self.fail = set()
+        self.records: list[Record] = list()
 
         self.tree = perio.tree
         self.root_id = perio.root_id
@@ -32,14 +54,6 @@ class Kram2CLB:
 
         self.load_marc(marc_path)
 
-    def _add_to_succ(self):
-        # remove from to_proc, add to success
-        raise NotImplementedError
-
-    def _add_to_fail(self):
-        # remove from to_proc, add to fail
-        raise NotImplementedError
-
     def load_marc(self, path: str):
         # load 773q records from csv
         # so far, we only support handmade csv with records from a single periodical
@@ -49,8 +63,7 @@ class Kram2CLB:
             for line in reader:
                 id = line['id']
                 for raw_loc in line["location"].split(';'):
-                    Tpl = namedtuple('record', ['id', 'raw_loc'])
-                    self.to_proc.add(Tpl(id, raw_loc))
+                    self.records.append(Record(id, raw_loc))
 
     def make_url(self, uuid: str) -> str:
         """Generate a URL to issue/volume/page.
@@ -67,6 +80,16 @@ class Kram2CLB:
         """
         return self.url+'/'+self.link_uuid+'/'+uuid
 
+    def return_successes(self) -> list[Record]:
+        succ = filter(lambda rec: rec.error_code is
+                      ErrorCodes.SUCCESS, self.records)
+        return list(succ)
+
+    def return_fails(self) -> list[Record]:
+        fails = filter(lambda rec: rec.error_code is not
+                       ErrorCodes.SUCCESS and rec.error_code is not ErrorCodes.TO_PROCESS, self.records)
+        return list(fails)
+
     def to_csv(self):
         raise NotImplementedError
 
@@ -76,6 +99,9 @@ class Kram2CLB:
     def normalize_tree(self):
         # normalizuj strom třeba tak, aby odstranil závorky a názvech atd.
         raise NotImplementedError
+
+    def success_rate(self) -> float:
+        return len(self.return_successes())/len(self.records)
 
     def _make_path_to_node(self, lst: list[str | None]) -> str:
         """Make path to a node by concatenating root, volume, issue, page numbers.
@@ -115,16 +141,17 @@ class Kram2CLB:
             return page_url
 
     def link(self):
-        iter_copy = self.to_proc.copy()
-        for id, loc in iter_copy:
-            volume, issue, page = normalize(*parse_location(loc))
+        for rec in self.records:
             path_to_page = self._make_path_to_node(
-                [self.root_id, volume, issue, page])
+                [self.root_id, rec.volume, rec.issue, rec.page])
             link_to_page = self._link(path_to_page)
             if link_to_page is not None:
                 logging.info(f'{id} `{path_to_page}` --> `{link_to_page}`')
+                rec.error_code = ErrorCodes.SUCCESS
+                rec.link = link_to_page
             else:
                 logging.info(f'{id} `{path_to_page}` not found')
+                rec.error_code = ErrorCodes.TO_DIAGNOSE
 
         # # It can happen that there is no `issue` in člb record, but there is an issue number from Kramerius.
         # # E.g. we have 773q '25<100' but from Kramerius we have '25/2/100'.
@@ -184,3 +211,20 @@ class Kram2CLB:
         issue_path = children[0]
         issue = issue_path.split('/')[-1]
         return issue
+
+    def _diagnose_773q(self):
+        # Look for inconsitencies in 773q field
+        fails = self.return_fails()
+        for rec in fails:
+            nones = filter(lambda x: x is None, [
+                           rec.volume, rec.issue, rec.page])
+            if len(list(nones)) > 1:
+                rec.error_code = ErrorCodes.MISSING_MULTIPLE
+                continue
+
+            if rec.volume is None:
+                rec.error_code = ErrorCodes.MISSING_VOL
+            if rec.issue is None:
+                rec.error_code = ErrorCodes.MISSING_ISSUE
+            if rec.page is None:
+                rec.error_code = ErrorCodes.MISSING_PAGE
