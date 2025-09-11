@@ -51,7 +51,7 @@ def main_mass():
             )
 
             per.download(prog_bar, save_part=True)
-            per.save(f'data/mzk_medium/{log_title}.json')
+            per.save(f'{BASE_PATH}{log_title}.json')
             per.delete_temp_file()
 
             root_logger.removeHandler(text_log)
