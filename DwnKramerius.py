@@ -594,7 +594,7 @@ class Periodical:
         Keys are made by concatenating volume/issue/page number.
     id_sep : str
         Separator used in keys in the tree, by default `/`.
-    root : str
+    root_id : str
         Root ID, by default `root`.
     link_uuid : str
         Part of URL linking to a particular UUID, by default `uuid`.
