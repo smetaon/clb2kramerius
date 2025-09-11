@@ -7,8 +7,6 @@ import pandas as pd
 
 
 def main_mass():
-    with open('.pid', 'w') as f:
-        print(os.getpid(), file=f)
 
     log_formatter = logging.Formatter(
         '%(asctime)s:%(name)s:%(levelname)s:%(message)s')
@@ -23,8 +21,10 @@ def main_mass():
         console_log.setLevel(log_lvl)
         root_logger.addHandler(console_log)
 
-    PATH = 'data/mzk_medium/mzk_medium.csv'
-    with open(PATH) as f:
+    BASE_PATH = 'data/'
+    SOURCE_CSV = BASE_PATH+'docker_test.csv'
+    LOGS_PATH = BASE_PATH+'logs/'
+    with open(SOURCE_CSV) as f:
         csv = pd.read_csv(f, delimiter=';', keep_default_na=False)
     csv_copy = csv.copy()
 
@@ -33,7 +33,7 @@ def main_mass():
             now = datetime.datetime.now()
             timestamp = now.strftime(r"%m%d%H%M")
             log_title = row.uuid
-            log_path = f'data/mzk_medium/logs/{timestamp}_{log_title}.log'
+            log_path = f'{LOGS_PATH}{timestamp}_{log_title}.log'
 
             text_log = logging.FileHandler(log_path, mode='w')
             text_log.setFormatter(log_formatter)
@@ -45,18 +45,18 @@ def main_mass():
                 per_uuid=str(row.uuid),
                 library='mzk',
                 kramerius_ver='7',
-                url='https://www.digitalniknihovna.cz/mzk',
-                api_url='https://api.kramerius.mzk.cz',
+                url='https://www.digitalniknihovna.cz/mzk',  # TODO: brát z csv
+                api_url='https://api.kramerius.mzk.cz',  # TODO: brát z csv
                 issn=str(row.issn)
             )
 
-            per.complete_download(prog_bar, save_part=True)
+            per.download(prog_bar, save_part=True)
             per.save(f'data/mzk_medium/{log_title}.json')
-            per.delete_temp_file
+            per.delete_temp_file()
 
             root_logger.removeHandler(text_log)
             csv_copy.at[row.Index, 'downloaded'] = 'T'
-            with open(PATH, 'w') as out:
+            with open(SOURCE_CSV, 'w') as out:
                 csv_copy.to_csv(out, sep=';', index=False)
         else:
             print(f'Skipping {row.title}')
@@ -89,7 +89,7 @@ def main_single():
         issn=''
     )
 
-    per.complete_download(prog_bar, save_part=True)
+    per.download(prog_bar, save_part=True)
     # per.save(f'data/debug/{per.name}')
 
 
