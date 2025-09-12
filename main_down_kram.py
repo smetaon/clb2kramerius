@@ -43,11 +43,12 @@ def main_mass():
             per = Periodical(
                 name=str(row.title),
                 per_uuid=str(row.uuid),
-                library='mzk',
-                kramerius_ver='7',
-                url='https://www.digitalniknihovna.cz/mzk',  # TODO: brát z csv
-                api_url='https://api.kramerius.mzk.cz',  # TODO: brát z csv
-                issn=str(row.issn)
+                library=str(row.lib),
+                kramerius_ver=str(row.kram_ver),
+                url=str(row.url),
+                api_url=str(row.api_url),
+                issn=str(row.issn),
+                ccnb=str(row.ccnb)
             )
 
             per.download(prog_bar, save_part=True)
@@ -70,23 +71,25 @@ def main_single():
             format='%(asctime)s:%(name)s:%(levelname)s:%(message)s')
 
     per = Periodical(
-        name='frenstat',
+        name='frenstat_test',
         per_uuid='uuid:a6e39600-4d55-11e5-8851-005056827e51',
         library='mzk',
         kramerius_ver='7',
         url='https://www.digitalniknihovna.cz/mzk',
         api_url='https://api.kramerius.mzk.cz',
-        issn=''
+        issn='',
+        ccnb=''
     )
 
     per = Periodical(
-        name='slansky obzor',
+        name='slansky obzor_test',
         per_uuid='uuid:597d4560-66fb-11de-ad0b-000d606f5dc6',
         library='nkp',
         kramerius_ver='5',
         url='https://kramerius5.nkp.cz',
         api_url='https://kramerius5.nkp.cz',
-        issn=''
+        issn='',
+        ccnb=''
     )
 
     per.download(prog_bar, save_part=True)
