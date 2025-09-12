@@ -18,8 +18,32 @@ class Library(Enum):
     Enum : str
         Acronym of a library.
     """
-    MZK = 'mzk'
-    NKP = 'nkp'
+    MZK = 'mzk'  # Moravská zemská knihovna
+    NKP = 'nkp'  # Národní knihovna ČR
+    UZEI = 'uzei'  # Knihovna Antonína Švehly
+    JVK = 'jvk'  # Jihočeská vědecká knihovna
+    CUNI = 'cuni'  # Karlova Univerzita
+    FSV = 'fsv'  # Fakulta sociálních věd UK
+    IDU = 'idu'  # Knihovna Divadelního ústavu
+    KFBZ = 'kfbz'  # Krajská knihovna Františka Bartoše ve Zlíně
+    KKVY = 'kkvy'  # Digitální knihovna Vysočiny
+    KPCE = 'kpce'  # Krajská knihovna v Pardubicích
+    KUK = 'kuk'  # Knihovna Ústeckého kraje
+    VKOL = 'vkol'  # Vědecká knihovna v Olomouci
+    LIBE = 'libe'  # Knihovna Liberec
+    CAS = 'cas'  # Digitální knihovna AV ČR
+    NLK = 'nlk'  # Národní lékařská knihovna
+    NACR = 'nacr'  # Národní archiv
+    NM = 'nm'  # Národní muzeum
+    KHK = 'khk'  # Digitální knihovna Královéhradeckého kraje
+    KKL = 'kkl'  # Středočeská knihovna v Kladně
+    MVKO = 'mvko'  # Moravskoslezská vědecká knihovna v Ostravě
+    PLK = 'plk'  # Studijní a vědecká knihovna Plzeňského kraje
+    UPM = 'upm'  # Umělockoprůmyslové muzeum
+    ZEME = 'zeme'  # Zeměměřická knihovna
+    JEW = 'jew'  # Židovské muzeum v Praze
+    NFA = 'nfa'  # Národní filmový archiv
+    MLP = 'mlp'  # Městská knihovna v Praze
 
 
 class KramVer(Enum):
