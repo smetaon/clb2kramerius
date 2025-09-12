@@ -587,8 +587,10 @@ class Periodical:
         The base URL of the library. Do not use URL with `/` at the end.
     api_url : str
         The Kramerius API URL. Do not use URL with `/` at the end.
-    issn : str | None
+    issn : str
         ISSN of the periodical, if it is available.
+    ccnb : str
+        Číslo národní bibliografie (https://www.registrdigitalizace.cz/rdcz/info/data/ccnb)
     tree : networkx.DiGraph
         The tree of the digited periodical.
         Keys are made by concatenating volume/issue/page number.
@@ -616,6 +618,7 @@ class Periodical:
                  url: str,
                  api_url: str,
                  issn: str,
+                 ccnb: str,
                  tree=nx.DiGraph(),
                  id_sep='/',
                  root_id='root',
@@ -631,6 +634,7 @@ class Periodical:
         self.url = url
         self.api_url = api_url
         self.issn = issn
+        self.ccnb = ccnb
         self.tree = tree
         self.id_sep = id_sep
         self.root_id = root_id
@@ -670,15 +674,15 @@ class Periodical:
             raise ValueError('URL should not end with `/`.')
 
     def __str__(self) -> str:
-        return f"`{self.name}` per_uuid={self.per_uuid}, issn={self.issn}, api_url={self.api_url}, url={self.url}, ver={self.kramerius_ver}, lib={self.library}"
+        return f"`{self.name}` per_uuid={self.per_uuid}, issn={self.issn}, api_url={self.api_url}, url={self.url}, ver={self.kramerius_ver}, ccnb={self.ccnb}, lib={self.library}"
 
-    def save(self, path: str) -> None:
-        """Save the object parameters to path in JSON.
+    def save(self, file: str) -> None:
+        """Save the object parameters to file (in JSON).
 
         Parameters
         ----------
-        path : str
-            Path to save location.
+        file : str
+            File to save to.
         """
 
         graph = nx.tree_data(self.tree, self.root_id)
@@ -693,6 +697,7 @@ class Periodical:
             'url': self.url,
             'api_url': self.api_url,
             'issn': self.issn,
+            'ccnb': self.ccnb,
             'tree': graph,
             'id_sep': self.id_sep,
             'root_id': self.root_id,
@@ -700,9 +705,9 @@ class Periodical:
             'max_depth': self.max_depth,
             'tmp_path': self.tmp_file,
         }
-        with open(path, 'w') as f:
+        with open(file, 'w') as f:
             json.dump(params, f, indent='\t', ensure_ascii=False)
-        logging.info(f'JSON saved to `{path}`')
+        logging.info(f'JSON saved to `{file}`')
         return
 
     def _set_KramAPI(self, root_id: str, prog_bar: bool, save_part: bool) -> None:
