@@ -772,7 +772,8 @@ class Periodical:
             Tree is too deep
         """
         if len(self.tree) <= 2:
-            raise ValueError('No tree to check!')
+            logging.warning('No tree to check!')
+            return
         try:
             self._check_tree_depth(self.root_id, self.max_depth, 0)
         except ValueError:
