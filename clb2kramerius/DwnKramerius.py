@@ -4,10 +4,10 @@ import logging
 from enum import Enum
 import requests as req
 from requests.adapters import HTTPAdapter, Retry
-import Parse773
 import csv
 from tqdm import tqdm
 import os
+from .Parse773 import normalize, parse_location
 
 
 class Library(Enum):
@@ -841,11 +841,11 @@ class Periodical:
             reader = csv.DictReader(f, delimiter=';')
             for row in reader:
                 for loc in row['location'].split(';'):
-                    volume, issue, page = Parse773.parse_location(loc)
+                    volume, issue, page = parse_location(loc)
                     if issue is None:
                         issue = 'no_issue'.upper()  # TODO: unify
                     # modify records HERE
-                    vol_iss_pg = Parse773.normalize(volume, issue, page)
+                    vol_iss_pg = normalize(volume, issue, page)
                     self._add_clb_record(*vol_iss_pg)
         logging.info(
             f'Built ČLB tree with Nodes={self.clb_tree.number_of_nodes()}, Edges={self.clb_tree.number_of_edges()}')

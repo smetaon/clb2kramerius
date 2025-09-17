@@ -1,0 +1,62 @@
+services:
+  app:
+    image: git.ucl.cas.cz:5050/ucl/clb2-kramerius/app
+    volumes:
+    - data:/usr/src/app/data
+    labels:
+      com.centurylinklabs.watchtower.scope: gitlab
+    restart: "no"
+  filebrowser:
+    image: filebrowser/filebrowser
+    volumes:
+    - config:/config
+    - data:/srv
+    - database:/database
+    ports:
+    - 80:80
+    labels:
+      com.centurylinklabs.watchtower.scope: none
+    restart: unless-stopped
+  ofelia:
+    image: mcuadros/ofelia
+    command: daemon --docker
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      com.centurylinklabs.watchtower.scope: none
+      ofelia.enabled: true
+      ofelia.job-run.start-app.command: docker start clb2-kramerius-app-1
+      ofelia.job-run.start-app.image: docker:cli
+      ofelia.job-run.start-app.schedule: 0 0 1 * * *
+      ofelia.job-run.start-app.volume: /var/run/docker.sock:/var/run/docker.sock
+      ofelia.job-run.stop-app.command: docker stop clb2-kramerius-app-1
+      ofelia.job-run.stop-app.image: docker:cli
+      ofelia.job-run.stop-app.schedule: 0 0 6 * * *
+      ofelia.job-run.stop-app.volume: /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+    - /etc/timezone:/etc/timezone
+    - /var/run/docker.sock:/var/run/docker.sock
+    labels:
+      com.centurylinklabs.watchtower.scope: none
+    environment:
+    - REPO_PASS=kdmkdm.999
+    - REPO_USER=chadima
+    - WATCHTOWER_CLEANUP=true
+    - WATCHTOWER_INCLUDE_STOPPED=true
+    - WATCHTOWER_NOTIFICATIONS_HOSTNAME=clb2-kramerius
+    - WATCHTOWER_NOTIFICATION_DELAY=120
+    - WATCHTOWER_NOTIFICATION_REPORT=true
+    - WATCHTOWER_NOTIFICATION_TITLE_TAG=clb2-kramerius
+    - WATCHTOWER_NOTIFICATION_URL=mattermost://chat.ucl.cas.cz/zx7ized56b8ji8kg1bcb93dp1y
+    - WATCHTOWER_NO_STARTUP_MESSAGE=true
+    - WATCHTOWER_POLL_INTERVAL=60
+    - WATCHTOWER_REVIVE_STOPPED=true
+    - WATCHTOWER_SCOPE=gitlab
+    restart: unless-stopped
+volumes:
+  config:
+  data:
+  database:

@@ -1,0 +1,11 @@
+[project]
+name = "clb2kramerius"
+version = "0.1.0"
+description = "clb2kramerius local install"
+
+[build-system]
+build-backend = "flit_core.buildapi"
+requires = ["flit_core >=3.2,<4"]
+
+[project.urls]
+Why = "https://stackoverflow.com/a/50194143"

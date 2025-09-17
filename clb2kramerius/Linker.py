@@ -1,10 +1,10 @@
 import logging
-from DwnKramerius import Periodical
 from enum import Enum, auto
 import csv
-from Parse773 import parse_location, normalize
 from dataclasses import dataclass, field
 import networkx as nx
+from .DwnKramerius import Periodical
+from .Parse773 import parse_location, normalize
 
 
 class ErrorCodes(Enum):

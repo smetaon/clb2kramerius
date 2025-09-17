@@ -1,4 +1,4 @@
-from DwnKramerius import Periodical, load_periodical
+from clb2kramerius.DwnKramerius import Periodical, load_periodical
 import logging
 import datetime
 import time
@@ -22,7 +22,7 @@ def main_mass():
         root_logger.addHandler(console_log)
 
     BASE_PATH = 'data/'
-    SOURCE_CSV = BASE_PATH+'docker_test.csv'
+    SOURCE_CSV = BASE_PATH+'source.csv'
     LOGS_PATH = BASE_PATH+'logs/'
     with open(SOURCE_CSV) as f:
         csv = pd.read_csv(f, delimiter=';', keep_default_na=False)
@@ -60,10 +60,10 @@ def main_mass():
             with open(SOURCE_CSV, 'w') as out:
                 csv_copy.to_csv(out, sep=';', index=False)
         else:
-            print(f'Skipping {row.title}')
+            print(f'Skipping {row.title}')  # TODO: přidat do nějakého logu ?
 
 
-def main_single():
+def main_single():  # TODO: remove
     prog_bar = False
     if not prog_bar:
         logging.basicConfig(
@@ -81,23 +81,23 @@ def main_single():
         ccnb=''
     )
 
-    per = Periodical(
-        name='slansky obzor_test',
-        per_uuid='uuid:597d4560-66fb-11de-ad0b-000d606f5dc6',
-        library='nkp',
-        kramerius_ver='5',
-        url='https://kramerius5.nkp.cz',
-        api_url='https://kramerius5.nkp.cz',
-        issn='',
-        ccnb=''
-    )
+    # per = Periodical(
+    #     name='slansky obzor_test',
+    #     per_uuid='uuid:597d4560-66fb-11de-ad0b-000d606f5dc6',
+    #     library='nkp',
+    #     kramerius_ver='5',
+    #     url='https://kramerius5.nkp.cz',
+    #     api_url='https://kramerius5.nkp.cz',
+    #     issn='',
+    #     ccnb=''
+    # )
 
     per.download(prog_bar, save_part=True)
     # per.save(f'data/debug/{per.name}')
 
 
 if __name__ == '__main__':
-    main_mass()
+    # main_mass()
     # start = time.time()
-    # main_single()
+    main_single()
     # print(f'it took {time.time()-start:.1f} sec')

@@ -1,11 +1,9 @@
 import pandas as pd
-from DwnKramerius import KramAPIv5, KramAPIv7
 
 
 def pair_issn(lib: pd.DataFrame, marc: pd.DataFrame) -> pd.DataFrame:
     lib = lib.dropna(ignore_index=True)
     marc = marc.dropna(ignore_index=True)
-    print(marc.info())
 
     marc = marc.set_index('issn')
     lib = lib.set_index('issn')
@@ -40,7 +38,7 @@ def get_kramerius_instances(df: pd.DataFrame, col_domains: str, file: str):
         krams.to_csv(f, sep=DELIM, index=False)
 
 
-PATH_DIGI_LIB = 'data/uuid_nk_clb.csv'
+PATH_DIGI_LIB = 'data/records.csv'
 PATH_MARC = 'data/marc_data/all_marc.csv'
 DELIM = ';'
 
@@ -51,7 +49,7 @@ with open(PATH_MARC) as f:
 
 
 digi_lib_df = prep_df(digi_lib_df,
-                      ['title', 'issn', 'uuid', 'domain'],
+                      ['title', 'issn', 'uuid', 'url'],
                       {'title': 'digi_lib_title'})
 
 marc_df = prep_df(marc_df,
@@ -59,7 +57,9 @@ marc_df = prep_df(marc_df,
                   {'periodical': 'marc_title'})
 
 
-get_kramerius_instances(digi_lib_df, 'domain', 'kram_instances')
+print(marc_df)
+
+# get_kramerius_instances(digi_lib_df, 'url', 'kram_instances')
 
 # issn(digi_lib_df,
 #      sort_by_col='digi_lib_title',
@@ -72,7 +72,8 @@ get_kramerius_instances(digi_lib_df, 'domain', 'kram_instances')
 #      has_issn_file='clb_has_issn')
 
 
-# joined = pair_issn(digi_lib_df, marc_df)
+joined = pair_issn(digi_lib_df, marc_df)
+print(joined)
 
-# with open('data/match_periodicals/joined_per.csv', 'w') as out:
-#     joined.to_csv(out, sep=DELIM)
+with open('data/match_periodicals/joined_per_all.csv', 'w') as out:
+    joined.to_csv(out, sep=DELIM)

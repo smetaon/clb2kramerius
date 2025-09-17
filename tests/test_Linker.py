@@ -1,5 +1,5 @@
-from Linker import Kram2CLB, ErrorCodes
-from DwnKramerius import load_periodical
+from clb2kramerius.Linker import Kram2CLB, ErrorCodes
+from clb2kramerius.DwnKramerius import load_periodical
 
 
 def test_diagnose_773q():

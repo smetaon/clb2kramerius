@@ -1,4 +1,4 @@
-from DwnKramerius import Periodical, KramAPIv5, KramAPIv7
+from clb2kramerius.DwnKramerius import Periodical, KramAPIv5, KramAPIv7
 import logging
 # TODO: potřebuje to nějaké testy pro scrapery, ne????
 logging.basicConfig(level=logging.INFO)

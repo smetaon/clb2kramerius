@@ -1,0 +1,5 @@
+12m24,857s pro obyčejné dfs stahování všeho pro frenštát, Nodes=3242 Edges=3241
+7m48,013s pro dfs stahování s využitím requests.Session()
+5m17,567s pro dfs2 1236 nodes and 1235 edges
+když stahuju pouze člb přesně: 1m51,364s Nodes=133 Edges=132
+po zredukování počtu dotazů na 7. verzi api: 

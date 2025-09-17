@@ -1,0 +1,19 @@
+variables:
+    PYTHON_VERSION: "3"
+stages:
+  - build
+build-job:
+    stage: build
+    image:
+        name: docker:stable
+    services:
+        - name: docker:dind
+          alias: dockerdaemon
+    variables:
+        DOCKER_HOST: tcp://dockerdaemon:2375/
+        DOCKER_DRIVER: overlay2
+        DOCKER_TLS_CERTDIR: ""
+    script:
+        - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+        - docker build -t "$CI_REGISTRY/ucl/clb2-kramerius/app" -f ./Dockerfile --build-arg "PYTHON_VERSION=${PYTHON_VERSION}" ./app
+        - docker push "$CI_REGISTRY/ucl/clb2-kramerius/app"

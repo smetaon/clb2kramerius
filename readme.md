@@ -126,3 +126,24 @@ Vyřešené tak, že pokud nenajdu stránku a volume má pouze jedno dítě (v d
 - issue = číslo
 - volume = ročník
 - unit = volume / issue / page
+
+# Známé fungující verze:
+```
+certifi==2025.8.3
+charset-normalizer==3.4.3
+idna==3.10
+iniconfig==2.1.0
+networkx==3.5
+numpy==2.3.2
+packaging==25.0
+pandas==2.3.1
+pluggy==1.6.0
+Pygments==2.19.2
+python-dateutil==2.9.0.post0
+pytz==2025.2
+requests==2.32.4
+six==1.17.0
+tqdm==4.67.1
+tzdata==2025.2
+urllib3==2.5.0
+```
